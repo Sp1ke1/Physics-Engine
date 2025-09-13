@@ -14,7 +14,14 @@ GIT_TAG 5.0
 set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(raylib)
 
-# Testing
+# Engine 
+file(GLOB_RECURSE PHYSICS_ENGINE_SOURCE "${PROJECT_SOURCE_DIR}/PhysicsEngine/Source/*.cpp")
+set ( PHYSICS_ENGINE_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/PhysicsEngine/Include" )
+add_library(PhysicsEngineLib STATIC ${PHYSICS_ENGINE_SOURCE})
+target_link_libraries(PhysicsEngineLib PUBLIC raylib)
+target_include_directories(PhysicsEngineLib PUBLIC ${PHYSICS_ENGINE_INCLUDE_DIR})
+
+# GTest
 FetchContent_Declare(
   googletest
   URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
@@ -23,19 +30,16 @@ set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 enable_testing()
 
-set (PHYSICS_ENGINE_TEST_SOURCE ${PROJECT_SOURCE_DIR}/PhysicsEngine/Test/Test_Main.cpp)
-add_executable(PhysicsEngineTests ${PHYSICS_ENGINE_TEST_SOURCE})
-target_include_directories(PhysicsEngineTests PRIVATE ${PROJECT_SOURCE_DIR}/PhysicsEngine/Include)
-target_link_libraries(PhysicsEngineTests PRIVATE gtest_main )
 
-add_test(NAME PhysicsEngineTests COMMAND PhysicsEngineTests)
+# Tests 
+add_executable(PhysicsEngineTest ${PROJECT_SOURCE_DIR}/Test_Main.cpp)
+target_include_directories(PhysicsEngineTest PRIVATE ${PHYSICS_ENGINE_INCLUDE_DIR})
+target_link_libraries(PhysicsEngineTest PRIVATE PhysicsEngineLib gtest_main)
+add_test(NAME PhysicsEngineTest COMMAND PhysicsEngineTest)
 
-
-# Physics engine executable
-file(GLOB_RECURSE PHYSICS_ENGINE_SOURCE "${PROJECT_SOURCE_DIR}/PhysicsEngine/Source/*.cpp")
-add_executable(PhysicsEngine ${PHYSICS_ENGINE_SOURCE})
-target_include_directories(PhysicsEngine PRIVATE ${PROJECT_SOURCE_DIR}/PhysicsEngine/Include)
-target_link_libraries(PhysicsEngine PRIVATE raylib)
+# Example 
+add_executable(PhysicsEngineExample ${PROJECT_SOURCE_DIR}/Main.cpp)
+target_link_libraries(PhysicsEngineExample PRIVATE PhysicsEngineLib )
 
 
 

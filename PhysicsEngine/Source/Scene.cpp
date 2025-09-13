@@ -1,6 +1,8 @@
 #pragma once
-#include "Physics/Scene.hpp"
+#include "Scene.hpp"
+#include "Collision.hpp"
 #include "raymath.h"
+#include <iostream>
 
 namespace PE 
 {
@@ -20,19 +22,19 @@ namespace PE
     }
     void CScene::SetCameraParameters(const SCameraParameters &CameraParameters)
     {
-    m_Camera . position = CameraParameters . Position;
-    m_Camera . target = CameraParameters . Target;
-    m_Camera . up = CameraParameters . Up;
-    m_Camera . fovy = CameraParameters . FovY;
-    m_Camera . projection = CameraParameters . Projection;
+        m_Camera . position = CameraParameters . Position;
+        m_Camera . target = CameraParameters . Target;
+        m_Camera . up = CameraParameters . Up;
+        m_Camera . fovy = CameraParameters . FovY;
+        m_Camera . projection = CameraParameters . Projection;
     }
 
     void CScene::Draw()
     {
         ClearBackground(RAYWHITE);
         BeginMode3D(m_Camera);
-        DrawWorld();
-        DrawBalls(); 
+            DrawWorld();
+            DrawBalls(); 
         EndMode3D();
     }
     void CScene::Initialize( const SSceneParameters & SceneParameters )
@@ -75,6 +77,13 @@ namespace PE
         {
             Ball . LinearVelocity = Vector3Add ( Ball . LinearVelocity, Vector3Scale ( { 0.f, -m_Gravity, 0.f } , DeltaTime ) );
             Ball . Location = Vector3Add ( Ball . Location, Vector3Scale ( Ball . LinearVelocity, DeltaTime ) );
+            const PE::Collision::SHitResult WorldHit = PE::Collision::TestSphereBox ( Ball . Location, Ball . Radius, { .min = m_WorldBox . Min, .max = m_WorldBox . Max } );
+             std::cout << "Collision with world box: " << WorldHit.IsHit << std ::endl;
+            if ( WorldHit . IsHit )
+            {
+               
+                Ball.Location = Vector3Add(Ball.Location, Vector3Scale( WorldHit . Normal , WorldHit . Penetration ) );
+            }
         }
     }
     void CScene::DrawBox(const SBox & Box)

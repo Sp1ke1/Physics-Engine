@@ -1,8 +1,8 @@
 #pragma once
 #include "raylib.h"
-#include "Physics/Ball.hpp"
-#include "Physics/Box.hpp"
-#include "Physics/Parameters.hpp"
+#include "Ball.hpp"
+#include "Box.hpp"
+#include "Parameters.hpp"
 #include <random> 
 #include <vector> 
 

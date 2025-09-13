@@ -1,5 +1,5 @@
 #include "raylib.h"
-#include <Physics/Scene.hpp>
+#include <Scene.hpp>
 
 int main(void)
 {

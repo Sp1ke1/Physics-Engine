@@ -34,11 +34,11 @@ struct SWindowParameters
     
     struct SSimulationParameters 
     {
-        int NumberOfBalls = 10;
+        int NumberOfBalls = 1;
         int RandomSeed = 42; 
         float Gravity = 9.81f;
-        Vector3 WorldBoxMin = { -10.f, -10.f, -10.f }; 
-        Vector3 WorldBoxMax = { 10.f, 10.f, 10.f };
+        Vector3 WorldBoxMin = { -7.5f, -7.5f, -7.5f }; 
+        Vector3 WorldBoxMax = { 7.5f, 7.5f, 7.5f };
         SBallGenerationParameters BallGenerationParameters;
     };
     

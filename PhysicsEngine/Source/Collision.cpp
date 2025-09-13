@@ -1,6 +1,6 @@
 #include "Collision.hpp"
-#include "raymath.h"
 #include "Misc.hpp"
+#include "raymath.h"
 
 namespace PE 
 {

@@ -17,12 +17,6 @@ namespace Collision
     };
     
     SHitResult TestSphereBox ( const Vector3 & SphereCenterLocation, float SphereRadius, const BoundingBox & Box );
-    Vector3 ClosestPointOnBox (const Vector3& PointLocation, const BoundingBox & Box );
-}
-
-    namespace detail 
-    {
-
-    }
+    Vector3 ClosestPointOnBox (const Vector3 & PointLocation, const BoundingBox & Box );
 } // namespace Collision
 } // namespace PE
