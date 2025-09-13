@@ -1,0 +1,30 @@
+# Ignore build directory
+/build/
+
+# Visual Studio and user files
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Visual Studio Code
+.vscode/
+
+# CMake files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Binary and temporary files
+*.exe
+*.obj
+*.o
+*.lib
+*.dll
+*.pdb
+*.ilk
+
+# OS generated files
+Thumbs.db
+.DS_Store
