@@ -1,31 +1,36 @@
-
-#include "Physics/Scene.hpp"
 #include "raylib.h"
+#include "Physics/Scene.hpp"
 
-CScene::CScene()
+CScene::CScene( const SWindowParameters& WindowParameters, const SCameraParameters& CameraParameters )
 {
-    InitWindow(m_ScreenWidth, m_ScreenHeight, "Physics Engine");
-    SetTargetFPS(m_TargetFPS);  
+    InitWindow (WindowParameters.ScreenWidth, WindowParameters.ScreenHeight, WindowParameters.Title.c_str());
+    SetTargetFPS ( WindowParameters.TargetFPS );
+    SetCameraParameters ( CameraParameters );
 }
 
-
-void CScene::Update( float DeltaTime )
+void CScene::Update(float DeltaTime) 
 {
     
+}
+void CScene::SetWindowParameters(const SWindowParameters &WindowParameters)
+{
+    SetWindowSize ( WindowParameters.ScreenWidth, WindowParameters . ScreenHeight );
+    SetTargetFPS ( WindowParameters . TargetFPS );
+}
+void CScene::SetCameraParameters(const SCameraParameters &CameraParameters)
+{
+    m_Camera . position = CameraParameters . Position;
+    m_Camera . target = CameraParameters . Target;
+    m_Camera . up = CameraParameters . Up;
+    m_Camera . fovy = CameraParameters . FovY;
+    m_Camera . projection = CameraParameters . Projection;
 }
 
 void CScene::Render()
 {
     ClearBackground(RAYWHITE);
-
-    Camera3D camera = { 0 };
-    camera.position = { 0.0f, 10.0f, 10.0f };  // Camera position
-    camera.target = { 0.0f, 0.0f, 0.0f };      // Camera looking at point
-    camera.up = { 0.0f, 1.0f, 0.0f };          // Camera up vector (rotation towards target)
-    camera.fovy = 45.0f;                                // Camera field-of-view Y
-    camera.projection = CAMERA_PERSPECTIVE;     
-     Vector3 cubePosition = { 0.0f, 0.0f, 0.0f };
-    BeginMode3D(camera);
+    Vector3 cubePosition = { 0.0f, 0.0f, 0.0f };
+    BeginMode3D(m_Camera);
         DrawCube(cubePosition, 2.0f, 2.0f, 2.0f, RED);
         DrawCubeWires(cubePosition, 2.0f, 2.0f, 2.0f, MAROON);
         DrawGrid(10, 1.0f);

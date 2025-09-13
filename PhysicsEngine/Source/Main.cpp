@@ -3,8 +3,8 @@
 
 int main(void)
 {
-    CScene Scene;
-    while (!WindowShouldClose())  
+    CScene Scene{ SWindowParameters{}, SCameraParameters{} };
+    while (!WindowShouldClose() )  
     {
         Scene . Update( GetFrameTime() );
         BeginDrawing();
