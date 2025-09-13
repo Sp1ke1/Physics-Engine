@@ -1,10 +1,10 @@
 #pragma once
 #include "raylib.h"
 #include "Ball.hpp"
-#include "Box.hpp"
 #include "Parameters.hpp"
 #include <random> 
-#include <vector> 
+#include <vector>
+#include <array>
 
 
 namespace PE
@@ -28,17 +28,19 @@ namespace PE
         
         void Initialize( const SSceneParameters & SceneParameters  ); 
         void DrawBall ( const SBall& Ball );
-        void DrawBox ( const SBox& Box );
+        void DrawBox ( const BoundingBox & Box );
         void DrawBalls ();
         void DrawWorld (); 
         void UpdateSimulation ( float DeltaTime ); 
         
         Camera3D m_Camera;
         std::vector<SBall> m_Balls; 
-        SBox m_WorldBox;
+        BoundingBox m_WorldBox;
         float m_Gravity; 
         
-        private: 
+        private:
+        std::array<BoundingBox, 6> BoundingBoxToPlanes ( const BoundingBox & Box ) const;
+        std::array<BoundingBox, 6> m_WorldPlanes; 
         std::mt19937 m_RandomGenerator; 
     };
 } // namespace PE

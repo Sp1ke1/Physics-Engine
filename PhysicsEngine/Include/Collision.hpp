@@ -1,7 +1,5 @@
 #pragma once 
 #include "raylib.h"
-#include "Box.hpp"
-#include "Ball.hpp"
 
 
 namespace PE
@@ -14,9 +12,11 @@ namespace Collision
         bool IsHit = false; 
         Vector3 Normal { 0.f, 0.f, 0.f }; 
         float Penetration = 0.f; 
+        Vector3 ContactPointOnA; 
+        Vector3 ContactPointOnB; 
     };
     
-    SHitResult TestSphereBox ( const Vector3 & SphereCenterLocation, float SphereRadius, const BoundingBox & Box );
+    SHitResult TestSphereBox ( const Vector3 SphereCenter, float SphereRadius, const BoundingBox & Box );
     Vector3 ClosestPointOnBox (const Vector3 & PointLocation, const BoundingBox & Box );
 } // namespace Collision
 } // namespace PE
