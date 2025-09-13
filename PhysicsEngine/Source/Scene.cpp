@@ -53,6 +53,7 @@ namespace PE
         m_Gravity = SimulationParameters . Gravity;
         m_WorldBox = { .min = SimulationParameters . WorldBoxMin, .max = SimulationParameters . WorldBoxMax };
         m_WorldPlanes = BoundingBoxToPlanes ( m_WorldBox );
+        m_BallsRestitution = SimulationParameters . BallsRestitution;
     }
 
     void CScene::DrawBall(const SBall &Ball)
@@ -82,10 +83,16 @@ namespace PE
             for ( const auto & Plane : m_WorldPlanes )
             {
                 const PE::Collision::SHitResult Hit = PE::Collision::TestSphereBox ( Ball . Center, Ball . Radius, Plane );
-                if ( Hit . IsHit ) 
+                if ( Hit . IsHit )
                 {
-                    std::cout << "Collided with plane!" << std::endl; 
-                }   
+                    Ball.Center = Vector3Add(Ball.Center, Vector3Scale(Hit.Normal, Hit.Penetration));
+                    const float NormalVelocityDot = Vector3DotProduct(Ball.LinearVelocity, Hit.Normal);
+                    if ( NormalVelocityDot < 0.f ) // Ball is moving towards the plane
+                    {
+                        const Vector3 NormalVelocity = Vector3Scale(Hit.Normal, NormalVelocityDot);
+                        Ball.LinearVelocity = Vector3Subtract(Ball.LinearVelocity, Vector3Scale(NormalVelocity, (1.f + m_BallsRestitution ) ) );
+                    }
+                }
             }
         }
     }

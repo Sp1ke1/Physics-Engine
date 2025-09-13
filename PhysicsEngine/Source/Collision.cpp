@@ -46,17 +46,11 @@ namespace Collision
         if ( DistanceYMax < DistanceMin ) { DistanceMin = DistanceYMax; HitNormal = { 0, +1, 0 }; }
         if ( DistanceZMin < DistanceMin ) { DistanceMin = DistanceZMin; HitNormal = { 0, 0, -1 }; }
         if ( DistanceZMax < DistanceMin ) { DistanceMin = DistanceZMax; HitNormal = { 0, 0, +1 }; }
-        
-        if ( DistanceMin < SphereRadius) 
-        {   
-            OutHitResult . IsHit = true;
-            OutHitResult . Normal = HitNormal; 
-            OutHitResult . Penetration = SphereRadius - DistanceMin;
-            return OutHitResult; 
-        }
-        
-        // Sphere is inside with no overlap 
-        return OutHitResult; 
+    
+        OutHitResult . IsHit = true;
+        OutHitResult . Normal = HitNormal; 
+        OutHitResult . Penetration = SphereRadius - DistanceMin;
+        return OutHitResult;
     }
 
 } // namespace Collision

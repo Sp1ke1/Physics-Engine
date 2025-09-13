@@ -37,6 +37,7 @@ namespace PE
         std::vector<SBall> m_Balls; 
         BoundingBox m_WorldBox;
         float m_Gravity; 
+        float m_BallsRestitution;
         
         private:
         std::array<BoundingBox, 6> BoundingBoxToPlanes ( const BoundingBox & Box ) const;
