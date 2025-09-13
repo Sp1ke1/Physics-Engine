@@ -13,7 +13,7 @@ namespace Collision
         const Vector3 ClosestOnBox = PE::Math::ClosestPointOnBox( SphereCenter, Box );
         const float DistanceSquared = Vector3DistanceSqr( SphereCenter, ClosestOnBox );
         const float RadiusSquared = SphereRadius * SphereRadius;
-        // No overlap 
+        // No overlap (treat exact touching as a hit — only strictly greater means no collision)
         if ( DistanceSquared > RadiusSquared )
         {
             OutHitResult . IsHit = false; 
@@ -51,6 +51,38 @@ namespace Collision
         OutHitResult . Normal = HitNormal; 
         OutHitResult . Penetration = SphereRadius - DistanceMin;
         return OutHitResult;
+    }
+
+    SHitResult TestSphereSphere(const Vector3 &SphereCenterA, float SphereRadiusA, const Vector3 &SphereCenterB, float SphereRadiusB)
+    {
+   
+        SHitResult OutHitResult; 
+        const Vector3 Direction = Vector3Subtract( SphereCenterB, SphereCenterA );
+        const float   DistanceSquared = Vector3DistanceSqr ( SphereCenterB, SphereCenterA );
+        const float   RadiiSum = SphereRadiusA + SphereRadiusB;
+        const float   RadiiSumSquared = RadiiSum * RadiiSum;
+
+        // No overlap (treat exact touching as a hit)
+        if ( DistanceSquared > RadiiSumSquared)
+        {
+            return OutHitResult;
+        }
+
+        OutHitResult . IsHit = true;
+        const float Distance = sqrtf(DistanceSquared);
+
+        // Centers are the same 
+        if (Distance < GSmallNumber)
+        {
+            OutHitResult.Normal = {1.f, 0.f, 0.f}; // Random normal
+            OutHitResult.Penetration = RadiiSum; // Maximum penetration
+            return OutHitResult;
+        }
+
+        // Overlap 
+        OutHitResult . Normal = Vector3Normalize ( Direction ); 
+        OutHitResult . Penetration = RadiiSum - Distance;
+        return OutHitResult; 
     }
 
 } // namespace Collision
