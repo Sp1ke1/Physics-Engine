@@ -22,18 +22,18 @@ set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 enable_testing()
 
-set (PHYSICS_ENGINE_TEST_SOURCE ${PROJECT_SOURCE_DIR}/Source/Test/Test_Main.cpp)
+set (PHYSICS_ENGINE_TEST_SOURCE ${PROJECT_SOURCE_DIR}/PhysicsEngine/Test/Test_Main.cpp)
 add_executable(PhysicsEngineTests ${PHYSICS_ENGINE_TEST_SOURCE})
-target_include_directories(PhysicsEngineTests PRIVATE ${PROJECT_SOURCE_DIR}/Source)
+target_include_directories(PhysicsEngineTests PRIVATE ${PROJECT_SOURCE_DIR}/PhysicsEngine/Include)
 target_link_libraries(PhysicsEngineTests PRIVATE gtest_main )
 
 add_test(NAME PhysicsEngineTests COMMAND PhysicsEngineTests)
 
 
-# Physics engine executablee
-set (PHYSICS_ENGINE_SOURCE ${PROJECT_SOURCE_DIR}/Source/PhysicsEngine/Main.cpp)
+# Physics engine executable
+file(GLOB_RECURSE PHYSICS_ENGINE_SOURCE "${PROJECT_SOURCE_DIR}/PhysicsEngine/Source/*.cpp")
 add_executable(PhysicsEngine ${PHYSICS_ENGINE_SOURCE})
-target_include_directories(PhysicsEngine PRIVATE ${PROJECT_SOURCE_DIR}/Source)
+target_include_directories(PhysicsEngine PRIVATE ${PROJECT_SOURCE_DIR}/PhysicsEngine/Include)
 target_link_libraries(PhysicsEngine PRIVATE raylib)
 
 
