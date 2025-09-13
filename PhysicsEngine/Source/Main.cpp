@@ -3,12 +3,12 @@
 
 int main(void)
 {
-    CScene Scene{ SWindowParameters{}, SCameraParameters{} };
+    CScene Scene { SSceneParameters {} };
     while (!WindowShouldClose() )  
     {
         Scene . Update( GetFrameTime() );
         BeginDrawing();
-            Scene . Render(); 
+            Scene . Draw(); 
         EndDrawing();
         
     }

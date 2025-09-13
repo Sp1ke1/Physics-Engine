@@ -2,6 +2,7 @@
 cmake_minimum_required(VERSION 3.14)
 project(PhysicsEngine LANGUAGES C CXX)
 include( FetchContent ) # Libraries download
+set(CMAKE_CXX_STANDARD 20)
 
 
 # Raylib
