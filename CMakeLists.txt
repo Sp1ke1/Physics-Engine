@@ -19,15 +19,11 @@ FetchContent_Declare(
   URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
 )
 set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
-#if(MSVC)
-  # Ensure googletest uses the shared MSVC runtime (/MD) to match typical MSVC
-  # project settings and avoid LNK2038 RuntimeLibrary mismatches.
- # set(gtest_force_shared_crt ON CACHE BOOL "Force googletest to use shared CRT" FORCE)
-#endif()
 FetchContent_MakeAvailable(googletest)
 enable_testing()
 
-add_executable(PhysicsEngineTests ${PROJECT_SOURCE_DIR}/Source/Test/Test_Main.cpp)
+set (PHYSICS_ENGINE_TEST_SOURCE ${PROJECT_SOURCE_DIR}/Source/Test/Test_Main.cpp)
+add_executable(PhysicsEngineTests ${PHYSICS_ENGINE_TEST_SOURCE})
 target_include_directories(PhysicsEngineTests PRIVATE ${PROJECT_SOURCE_DIR}/Source)
 target_link_libraries(PhysicsEngineTests PRIVATE gtest_main )
 
@@ -35,7 +31,8 @@ add_test(NAME PhysicsEngineTests COMMAND PhysicsEngineTests)
 
 
 # Physics engine executablee
-add_executable(PhysicsEngine Source/Main.cpp)
+set (PHYSICS_ENGINE_SOURCE ${PROJECT_SOURCE_DIR}/Source/PhysicsEngine/Main.cpp)
+add_executable(PhysicsEngine ${PHYSICS_ENGINE_SOURCE})
 target_include_directories(PhysicsEngine PRIVATE ${PROJECT_SOURCE_DIR}/Source)
 target_link_libraries(PhysicsEngine PRIVATE raylib)
 
