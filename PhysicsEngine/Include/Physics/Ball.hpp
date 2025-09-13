@@ -1,13 +1,17 @@
 #pragma once
 #include "raylib.h"
 
-struct SBall 
+namespace PE 
 {
-    Vector3 Location; 
-    Quaternion Rotation; 
-    Vector3 LinearVelocity; 
-    Vector3 AngularVelocity;
-    float Radius; 
-    float Mass; 
-    Color Color;  
-};
+
+    struct SBall 
+    {
+        Vector3 Location; 
+        Quaternion Rotation; 
+        Vector3 LinearVelocity; 
+        Vector3 AngularVelocity;
+        float Radius; 
+        float Mass; 
+        Color Color;  
+    };
+} // namespace PE

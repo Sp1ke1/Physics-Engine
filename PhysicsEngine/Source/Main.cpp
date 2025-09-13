@@ -3,7 +3,7 @@
 
 int main(void)
 {
-    CScene Scene { SSceneParameters {} };
+    PE::CScene Scene { PE::SSceneParameters {} };
     while (!WindowShouldClose() )  
     {
         Scene . Update( GetFrameTime() );
