@@ -14,8 +14,14 @@ namespace PE
 
     void CScene::Update(float DeltaTime) 
     {
-        UpdateCamera ( &m_Camera, CAMERA_THIRD_PERSON );
-        UpdateSimulation( DeltaTime );
+        UpdateCamera ( &m_Camera, CAMERA_FREE );
+
+        m_TimeAccumulator += DeltaTime;
+        while ( m_TimeAccumulator >= m_FixedDeltaTime )
+        {
+            SimulationStep( m_FixedDeltaTime );
+            m_TimeAccumulator -= m_FixedDeltaTime;
+        }
     }
     void CScene::SetWindowParameters(const SWindowParameters &WindowParameters)
     {
@@ -38,6 +44,7 @@ namespace PE
             DrawWorld();
             DrawBalls(); 
         EndMode3D();
+        DrawTimer(); 
     }
     void CScene::Initialize( const SSceneParameters & SceneParameters )
     {
@@ -46,6 +53,15 @@ namespace PE
         DisableCursor(); 
         SetCameraParameters ( SceneParameters . CameraParameters );
         SetSimulationParameters ( SceneParameters . SimulationParameters);
+        m_SimulationStartTime = GetTime(); 
+    }
+
+    void CScene::DrawTimer()
+    {
+        const double ElapsedTime = GetTime() - m_SimulationStartTime; 
+        char Buffer [64];
+        snprintf(Buffer, sizeof(Buffer), "Time: %.2f s", ElapsedTime );
+        DrawText(Buffer, 0, 0, 20, BLACK);
     }
 
     void CScene::SetSimulationParameters ( const SSimulationParameters &SimulationParameters)
@@ -56,6 +72,9 @@ namespace PE
         m_WorldBox = { .min = SimulationParameters . WorldBoxMin, .max = SimulationParameters . WorldBoxMax };
         m_WorldPlanes = BoundingBoxToPlanes ( m_WorldBox );
         m_BallsRestitution = SimulationParameters . BallsRestitution;
+        m_FixedDeltaTime = 1.f / static_cast<float> ( SimulationParameters . SimulationFrequency );
+        m_Slop = SimulationParameters . Slop;
+        m_NumberOfSolverSteps = SimulationParameters . NumberOfSteps;
     }
 
     void CScene::DrawBall(const SBall &Ball)
@@ -76,7 +95,7 @@ namespace PE
     {
         DrawBox ( m_WorldBox ); 
     }
-    void CScene::UpdateSimulation(float DeltaTime)
+    void CScene::SimulationStep (float DeltaTime)
     {
         IntegrateLinear( DeltaTime );
         ResolveCollisions ( DeltaTime );
@@ -94,8 +113,11 @@ namespace PE
     }
     void CScene::ResolveCollisions(float DeltaTime)
     {
-        ResolveCollisionsWithWalls ( DeltaTime );
-        ResolveCollisionsBetweenBalls ( DeltaTime );
+        for ( auto i = 0; i < m_NumberOfSolverSteps; ++i )
+        {
+            ResolveCollisionsWithWalls ( DeltaTime );
+            ResolveCollisionsBetweenBalls ( DeltaTime );
+        }
     }
     void CScene::ResolveCollisionsWithWalls(float DeltaTime)
     {
@@ -103,22 +125,21 @@ namespace PE
         {
             for (const auto& Plane : m_WorldPlanes)
             {
-                const PE::Collision::SHitResult Hit =
-                    PE::Collision::TestSphereBox(Ball.Center, Ball.Radius, Plane);
+                const PE::Collision::SHitResult Hit = PE::Collision::TestSphereBox(Ball.Center, Ball.Radius, Plane);
 
                 if (Hit.IsHit)
                 {
-                    // позиционная коррекция
-                    Ball.Center = Vector3Add(Ball.Center, Vector3Scale(Hit.Normal, Hit.Penetration));
-
-                    // отражение скорости по нормали
+                    // Positional correction
+                    const float Penetration = Hit.Penetration - m_Slop;
+                    if ( Penetration > 0.f ) 
+                    {
+                        Ball.Center = Vector3Add(Ball.Center, Vector3Scale(Hit.Normal, Hit.Penetration));
+                    }
                     const float vn = Vector3DotProduct(Ball.LinearVelocity, Hit.Normal);
                     if (vn < 0.f)
                     {
                         const Vector3 vN = Vector3Scale(Hit.Normal, vn);
-                        Ball.LinearVelocity = Vector3Subtract(
-                            Ball.LinearVelocity,
-                            Vector3Scale(vN, (1.f + m_BallsRestitution)));
+                        Ball.LinearVelocity = Vector3Subtract( Ball.LinearVelocity, Vector3Scale(vN, (1.f + m_BallsRestitution)));
                     }
                 }
             }

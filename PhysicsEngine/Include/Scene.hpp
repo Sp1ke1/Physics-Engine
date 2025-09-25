@@ -27,11 +27,12 @@ namespace PE
         
         
         void Initialize( const SSceneParameters & SceneParameters  ); 
+        void DrawTimer ();
         void DrawBall ( const SBall& Ball );
         void DrawBox ( const BoundingBox & Box );
         void DrawBalls ();
         void DrawWorld (); 
-        void UpdateSimulation ( float DeltaTime );
+        void SimulationStep ( float DeltaTime );
         void IntegrateLinear( float DeltaTime );
         void ResolveCollisions( float DeltaTime);
         void ResolveCollisionsWithWalls ( float DeltaTime );
@@ -46,6 +47,11 @@ namespace PE
         private:
         std::array<BoundingBox, 6> BoundingBoxToPlanes ( const BoundingBox & Box ) const;
         std::array<BoundingBox, 6> m_WorldPlanes; 
-        std::mt19937 m_RandomGenerator; 
+        std::mt19937 m_RandomGenerator;
+        float m_TimeAccumulator = 0.f;
+        float m_FixedDeltaTime = 0.f;
+        int m_NumberOfSolverSteps = 1;
+        float m_Slop = 1e-5f;
+        double m_SimulationStartTime = 0.f; 
     };
 } // namespace PE
