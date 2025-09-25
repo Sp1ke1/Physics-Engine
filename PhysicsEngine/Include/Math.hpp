@@ -7,5 +7,6 @@ namespace Math
     Vector3 ClosestPointOnBox(const Vector3 &PointLocation, const BoundingBox &Box);
     Vector3 BoxCenter ( const BoundingBox & Box );
     Vector3 BoxSize ( const BoundingBox & Box );
+    Color ColorLerp ( const Color & C1, const Color & C2, float T ); 
 }    
 }

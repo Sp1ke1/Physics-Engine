@@ -26,15 +26,18 @@ struct SWindowParameters
     {
         Vector3 MinLocation = { -5.0f, 5.0f, -5.0f };
         Vector3 MaxLocation = { 5.0f, 5.0f, 5.0f };
+        Vector3 MinLinearVelocity = { -1.0f, -1.0f, -1.0f };
+        Vector3 MaxLinearVelocity = { 1.0f, 1.0f, 1.0f };
+        Vector3 MinAngularVelocity = { -1.0f, -1.0f , -1.0f };
+        Vector3 MaxAngularVelocity = { 1.0f, 1.0f , 1.0f };
         float MinRadius = 0.5f; 
-        float MaxRadius = 2.0f; 
-        float MinMass = 1.0f; 
-        float MaxMass = 10.0f; 
+        float MaxRadius = 1.f; 
+        float MassToRadius = 1.f; // Mass = Radius * MassToRadius 
     };
     
     struct SSimulationParameters 
     {
-        int NumberOfBalls = 5;
+        int NumberOfBalls = 50;
         int RandomSeed = 42; 
         float Gravity = 9.81f;
         float BallsRestitution = 0.9f;

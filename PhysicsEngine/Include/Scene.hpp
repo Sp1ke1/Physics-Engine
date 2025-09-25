@@ -31,7 +31,11 @@ namespace PE
         void DrawBox ( const BoundingBox & Box );
         void DrawBalls ();
         void DrawWorld (); 
-        void UpdateSimulation ( float DeltaTime ); 
+        void UpdateSimulation ( float DeltaTime );
+        void IntegrateLinear( float DeltaTime );
+        void ResolveCollisions( float DeltaTime);
+        void ResolveCollisionsWithWalls ( float DeltaTime );
+        void ResolveCollisionsBetweenBalls ( float DeltaTime );
         
         Camera3D m_Camera;
         std::vector<SBall> m_Balls; 

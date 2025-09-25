@@ -76,58 +76,138 @@ namespace PE
     }
     void CScene::UpdateSimulation(float DeltaTime)
     {
-        for ( auto & Ball : m_Balls ) 
+        IntegrateLinear( DeltaTime );
+        ResolveCollisions ( DeltaTime );
+    }
+    void CScene::IntegrateLinear( float DeltaTime )
+    {
+        for (auto& Ball : m_Balls)
         {
-            Ball . LinearVelocity = Vector3Add ( Ball . LinearVelocity, Vector3Scale ( { 0.f, -m_Gravity, 0.f } , DeltaTime ) );
-            Ball . Center = Vector3Add ( Ball . Center , Vector3Scale ( Ball . LinearVelocity, DeltaTime ) );
-            for ( const auto & Plane : m_WorldPlanes )
+            Ball.LinearVelocity = Vector3Add(Ball.LinearVelocity,
+                Vector3Scale({0.f, -m_Gravity, 0.f}, DeltaTime));
+
+            Ball.Center = Vector3Add(Ball.Center,
+                Vector3Scale(Ball.LinearVelocity, DeltaTime));
+        }
+    }
+    void CScene::ResolveCollisions(float DeltaTime)
+    {
+        ResolveCollisionsWithWalls ( DeltaTime );
+        ResolveCollisionsBetweenBalls ( DeltaTime );
+    }
+    void CScene::ResolveCollisionsWithWalls(float DeltaTime)
+    {
+        for (auto& Ball : m_Balls)
+        {
+            for (const auto& Plane : m_WorldPlanes)
             {
-                const PE::Collision::SHitResult Hit = PE::Collision::TestSphereBox ( Ball . Center, Ball . Radius, Plane );
-                if ( Hit . IsHit )
+                const PE::Collision::SHitResult Hit =
+                    PE::Collision::TestSphereBox(Ball.Center, Ball.Radius, Plane);
+
+                if (Hit.IsHit)
                 {
+                    // позиционная коррекция
                     Ball.Center = Vector3Add(Ball.Center, Vector3Scale(Hit.Normal, Hit.Penetration));
-                    const float NormalVelocityDot = Vector3DotProduct(Ball.LinearVelocity, Hit.Normal);
-                    if ( NormalVelocityDot < 0.f ) // Ball is moving towards the plane
+
+                    // отражение скорости по нормали
+                    const float vn = Vector3DotProduct(Ball.LinearVelocity, Hit.Normal);
+                    if (vn < 0.f)
                     {
-                        const Vector3 NormalVelocity = Vector3Scale(Hit.Normal, NormalVelocityDot);
-                        Ball.LinearVelocity = Vector3Subtract(Ball.LinearVelocity, Vector3Scale(NormalVelocity, (1.f + m_BallsRestitution ) ) );
+                        const Vector3 vN = Vector3Scale(Hit.Normal, vn);
+                        Ball.LinearVelocity = Vector3Subtract(
+                            Ball.LinearVelocity,
+                            Vector3Scale(vN, (1.f + m_BallsRestitution)));
                     }
                 }
             }
         }
     }
-    std::array<BoundingBox, 6> CScene::BoundingBoxToPlanes(const BoundingBox &Box) const
+    void CScene::ResolveCollisionsBetweenBalls(float DeltaTime)
+{
+    for (size_t i = 0; i < m_Balls . size(); ++i)
     {
+        for (size_t j = i + 1; j < m_Balls . size(); ++j)
+        {
+            SBall& A = m_Balls[i];
+            SBall& B = m_Balls[j];
 
-        std::array<BoundingBox,6> OutPlanes {}; 
-        // Order: left, right, bottom, top, front, back
+            const PE::Collision::SHitResult Hit = PE::Collision::TestSphereSphere(A.Center, A.Radius, B.Center, B.Radius);
 
-        // left  (x = min)
-        OutPlanes[0].min = { Box.min.x, Box.min.y, Box.min.z };
-        OutPlanes[0].max = { Box.min.x, Box.max.y, Box.max.z };
+            if (!Hit.IsHit) 
+            {
+                continue;
+            }
+            const float InverseMassA = (A.Mass > 0.f) ? 1.0f / A.Mass : 0.f;
+            const float InverseMassB = (B.Mass > 0.f) ? 1.0f / B.Mass : 0.f;
+            const float InverseMassSum = InverseMassA + InverseMassB;
 
-        // right (x = max)
-        OutPlanes[1].min = { Box.max.x, Box.min.y, Box.min.z };
-        OutPlanes[1].max = { Box.max.x, Box.max.y, Box.max.z };
+            if (InverseMassSum > 0.f)
+            {
+                const float Slop = 1e-5f;
+                const float Penetration = (Hit.Penetration > Slop) ? (Hit.Penetration - Slop) : 0.f;
 
-        // bottom (y = min)
-        OutPlanes[2].min = { Box.min.x, Box.min.y, Box.min.z };
-        OutPlanes[2].max = { Box.max.x, Box.min.y, Box.max.z };
+                if (Penetration > 0.f)
+                {
+                    const Vector3 Correction = Vector3Scale(Hit.Normal, Penetration / InverseMassSum);
+                    if (InverseMassA > 0.f) 
+                    { 
+                        A.Center = Vector3Subtract(A.Center, Vector3Scale(Correction, InverseMassA));
+                    }
+                    if (InverseMassB > 0.f) 
+                    { 
+                        B.Center = Vector3Add(B.Center, Vector3Scale(Correction, InverseMassB));
+                    }
+                }
+            }
 
-        // top (y = max)
-        OutPlanes[3].min = { Box.min.x, Box.max.y, Box.min.z };
-        OutPlanes[3].max = { Box.max.x, Box.max.y, Box.max.z };
+            // Normal impulse
+            const Vector3 RelativeVelocity = Vector3Subtract(B.LinearVelocity, A.LinearVelocity);
+            const float VelocityNormal = Vector3DotProduct(RelativeVelocity, Hit.Normal);
 
-        // front (z = min)
-        OutPlanes[4].min = { Box.min.x, Box.min.y, Box.min.z };
-        OutPlanes[4].max = { Box.max.x, Box.max.y, Box.min.z };
+            // Apply impulse only if they are moving towards each other
+            if (VelocityNormal < 0.f) 
+            {
+                const float ImpulseScale = -(1.f + m_BallsRestitution) * VelocityNormal / std::max(InverseMassSum, 1e-12f);
+                const Vector3 Impulse = Vector3Scale(Hit.Normal, ImpulseScale);
 
-        // back (z = max)
-        OutPlanes[5].min = { Box.min.x, Box.min.y, Box.max.z };
-        OutPlanes[5].max = { Box.max.x, Box.max.y, Box.max.z };
-
-        return OutPlanes;
+                if (InverseMassA > 0.f) A.LinearVelocity = Vector3Subtract(A.LinearVelocity, Vector3Scale(Impulse, InverseMassA));
+                if (InverseMassB > 0.f) B.LinearVelocity = Vector3Add(B.LinearVelocity, Vector3Scale(Impulse, InverseMassB));
+            }
+        }
     }
+}
+std::array<BoundingBox, 6> CScene::BoundingBoxToPlanes(const BoundingBox &Box) const
+{
+
+    std::array<BoundingBox, 6> OutPlanes{};
+    // Order: left, right, bottom, top, front, back
+
+    // left  (x = min)
+    OutPlanes[0].min = {Box.min.x, Box.min.y, Box.min.z};
+    OutPlanes[0].max = {Box.min.x, Box.max.y, Box.max.z};
+
+    // right (x = max)
+    OutPlanes[1].min = {Box.max.x, Box.min.y, Box.min.z};
+    OutPlanes[1].max = {Box.max.x, Box.max.y, Box.max.z};
+
+    // bottom (y = min)
+    OutPlanes[2].min = {Box.min.x, Box.min.y, Box.min.z};
+    OutPlanes[2].max = {Box.max.x, Box.min.y, Box.max.z};
+
+    // top (y = max)
+    OutPlanes[3].min = {Box.min.x, Box.max.y, Box.min.z};
+    OutPlanes[3].max = {Box.max.x, Box.max.y, Box.max.z};
+
+    // front (z = min)
+    OutPlanes[4].min = {Box.min.x, Box.min.y, Box.min.z};
+    OutPlanes[4].max = {Box.max.x, Box.max.y, Box.min.z};
+
+    // back (z = max)
+    OutPlanes[5].min = {Box.min.x, Box.min.y, Box.max.z};
+    OutPlanes[5].max = {Box.max.x, Box.max.y, Box.max.z};
+
+    return OutPlanes;
+}
     void CScene::DrawBox(const BoundingBox & Box)
     {
         const Vector3 Size = PE::Math::BoxSize ( Box );
@@ -147,19 +227,27 @@ namespace PE
 
     SBall CScene::GenerateBall( const SBallGenerationParameters &BallGenerationParameters )
     {
+        // Location 
         std::uniform_real_distribution<float> UX(BallGenerationParameters . MinLocation.x, BallGenerationParameters . MaxLocation.x);
         std::uniform_real_distribution<float> UY(BallGenerationParameters . MinLocation.y, BallGenerationParameters . MaxLocation.y);
         std::uniform_real_distribution<float> UZ(BallGenerationParameters . MinLocation.z, BallGenerationParameters . MaxLocation.z);
-        std::uniform_real_distribution<float> URadius(BallGenerationParameters . MinRadius, BallGenerationParameters . MaxRadius );
-        std::uniform_real_distribution<float> UMass(BallGenerationParameters . MinMass, BallGenerationParameters . MaxMass );
+        // Linear velocity
+        std::uniform_real_distribution<float> ULVX(BallGenerationParameters . MinLinearVelocity.x, BallGenerationParameters . MaxLinearVelocity.x);
+        std::uniform_real_distribution<float> ULVY(BallGenerationParameters . MinLinearVelocity.y, BallGenerationParameters . MaxLinearVelocity.y);
+        std::uniform_real_distribution<float> ULVZ(BallGenerationParameters . MinLinearVelocity.z, BallGenerationParameters . MaxLinearVelocity.z);
 
+        // Radius 
+        std::uniform_real_distribution<float> URadius(BallGenerationParameters . MinRadius, BallGenerationParameters . MaxRadius );
+        const float Radius = URadius(m_RandomGenerator);
+        const float Mass = Radius * BallGenerationParameters . MassToRadius;
+        const Color BallColor = PE::Math::ColorLerp ( GREEN, RED, ( Radius - BallGenerationParameters . MinRadius ) / ( BallGenerationParameters . MaxRadius - BallGenerationParameters . MinRadius ) );
         return SBall {  .Center = { UX(m_RandomGenerator), UY(m_RandomGenerator), UZ(m_RandomGenerator) }, 
-                        .Radius = URadius(m_RandomGenerator) ,
+                        .Radius = Radius ,
                         .Rotation = QuaternionIdentity(),
-                        .LinearVelocity = { 0, 0, 0 },
+                        .LinearVelocity = { ULVX( m_RandomGenerator ), ULVY( m_RandomGenerator ), ULVZ( m_RandomGenerator ) },
                         .AngularVelocity = { 0, 0, 0 },
-                        .Mass = UMass(m_RandomGenerator),
-                        .Color = RED 
+                        .Mass = Mass,
+                        .Color = BallColor
                      };
     }
 } // namespace PE
