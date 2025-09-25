@@ -44,7 +44,7 @@ namespace PE
             DrawWorld();
             DrawBalls(); 
         EndMode3D();
-        DrawTimer(); 
+        DrawUI(); 
     }
     void CScene::Initialize( const SSceneParameters & SceneParameters )
     {
@@ -56,12 +56,15 @@ namespace PE
         m_SimulationStartTime = GetTime(); 
     }
 
-    void CScene::DrawTimer()
+    void CScene::DrawUI()
     {
         const double ElapsedTime = GetTime() - m_SimulationStartTime; 
         char Buffer [64];
         snprintf(Buffer, sizeof(Buffer), "Time: %.2f s", ElapsedTime );
         DrawText(Buffer, 0, 0, 20, BLACK);
+        snprintf(Buffer, sizeof(Buffer), "Number of balls: %lu", m_Balls . size() );
+        DrawText(Buffer, 0, 20, 20, BLACK);
+
     }
 
     void CScene::SetSimulationParameters ( const SSimulationParameters &SimulationParameters)
@@ -133,7 +136,7 @@ namespace PE
                     const float Penetration = Hit.Penetration - m_Slop;
                     if ( Penetration > 0.f ) 
                     {
-                        Ball.Center = Vector3Add(Ball.Center, Vector3Scale(Hit.Normal, Hit.Penetration));
+                        Ball.Center = Vector3Add(Ball.Center, Vector3Scale(Hit.Normal, Penetration));
                     }
                     const float vn = Vector3DotProduct(Ball.LinearVelocity, Hit.Normal);
                     if (vn < 0.f)
@@ -240,7 +243,8 @@ std::array<BoundingBox, 6> CScene::BoundingBoxToPlanes(const BoundingBox &Box) c
 
     std::vector<SBall> CScene::GenerateBalls( int NumberOfBalls, const SBallGenerationParameters & BallGenerationParameters )
     {
-        std::vector<SBall> OutBalls ( NumberOfBalls ); 
+        std::vector<SBall> OutBalls;
+        OutBalls.reserve( NumberOfBalls ); 
         for ( int i = 0; i < NumberOfBalls; i ++ ) 
         {
             OutBalls . push_back ( std::move ( GenerateBall ( BallGenerationParameters ) ) );

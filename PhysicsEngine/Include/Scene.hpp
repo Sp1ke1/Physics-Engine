@@ -27,7 +27,7 @@ namespace PE
         
         
         void Initialize( const SSceneParameters & SceneParameters  ); 
-        void DrawTimer ();
+        void DrawUI ();
         void DrawBall ( const SBall& Ball );
         void DrawBox ( const BoundingBox & Box );
         void DrawBalls ();

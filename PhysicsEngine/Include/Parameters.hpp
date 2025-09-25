@@ -37,13 +37,13 @@ struct SWindowParameters
     
     struct SSimulationParameters 
     {
-        int SimulationFrequency = 120; 
+        int SimulationFrequency = 240; 
         int NumberOfSteps = 8;
-        int NumberOfBalls = 1;
+        int NumberOfBalls = 25;
         int RandomSeed = 42;
         float Slop = 1e-5f;
         float Gravity = 9.81f;
-        float BallsRestitution = 0.2f;
+        float BallsRestitution = 0.5f;
         Vector3 WorldBoxMin = { -7.5f, -7.5f, -7.5f }; 
         Vector3 WorldBoxMax = { 7.5f, 7.5f, 7.5f };
         SBallGenerationParameters BallGenerationParameters;

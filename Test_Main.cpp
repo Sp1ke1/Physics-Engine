@@ -2,7 +2,7 @@
 #include "raylib.h"
 #include "Collision.hpp"
 
-TEST ( Collision, SphereBoxNoCollision ) 
+TEST ( Collision, SphereBoxNoCollisionIsHit ) 
 {
     Vector3 SphereCenter { 0.f, 0.f, 0.f };
     float SphereRadius = 1.f;
@@ -20,7 +20,7 @@ TEST ( Collision, SphereBoxNoCollision )
     EXPECT_FALSE ( HitResult3 . IsHit );
 }
 
-TEST ( Collision, SphereBoxCollision ) 
+TEST ( Collision, SphereBoxCollisionIsHit ) 
 {
     Vector3 SphereCenter { 0.f, 0.f, 0.f };
     float SphereRadius = 1.f;
@@ -42,7 +42,7 @@ TEST ( Collision, SphereBoxCollision )
     EXPECT_TRUE ( HitResult4 . IsHit );
 }
 
-TEST ( Collision, SphereSphereNoCollision ) 
+TEST ( Collision, SphereSphereNoCollisionIsHit ) 
 {
     const Vector3 CenterA { 0.f, 0.f, 0.f };
     const float RadiusA = 1.f; 
@@ -61,7 +61,7 @@ TEST ( Collision, SphereSphereNoCollision )
     EXPECT_FALSE ( HitResult3 . IsHit );
 }
 
-TEST ( Collision, SphereSphereCollision ) 
+TEST ( Collision, SphereSphereCollisionIsHit ) 
 {
     const Vector3 CenterA { 0.f, 0.f, 0.f };
     const float RadiusA = 1.f; 
