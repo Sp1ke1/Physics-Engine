@@ -15,7 +15,7 @@ struct SWindowParameters
     
     struct SCameraParameters
     {
-        Vector3 Position = { 0.0f, 15.0f, 10.0f };
+        Vector3 Position = { 0.0f, -5.f, 25.0f };
         Vector3 Target = { 0.0f, 0.0f, 0.0f };      
         Vector3 Up = { 0.0f, 1.0f, 0.0f };        
         float FovY = 45.0f;

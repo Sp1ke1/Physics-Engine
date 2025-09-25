@@ -14,6 +14,7 @@ namespace PE
 
     void CScene::Update(float DeltaTime) 
     {
+        UpdateCamera ( &m_Camera, CAMERA_THIRD_PERSON );
         UpdateSimulation( DeltaTime );
     }
     void CScene::SetWindowParameters(const SWindowParameters &WindowParameters)
@@ -42,6 +43,7 @@ namespace PE
     {
         InitWindow ( SceneParameters . WindowParameters . ScreenWidth, SceneParameters . WindowParameters . ScreenHeight, SceneParameters . WindowParameters . Title . c_str());
         SetTargetFPS ( SceneParameters . WindowParameters . TargetFPS );
+        DisableCursor(); 
         SetCameraParameters ( SceneParameters . CameraParameters );
         SetSimulationParameters ( SceneParameters . SimulationParameters);
     }
