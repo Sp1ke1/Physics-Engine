@@ -19,6 +19,7 @@ namespace PE
         void SetSimulationParameters ( const SSimulationParameters & SimulationParameters  );
         void Update(float DeltaTime );
         void Draw();
+        void ClearSimulation();
         std::vector<SBall> GenerateBalls( int NumberOfBalls, const SBallGenerationParameters & BallGenerationParameters );
         SBall GenerateBall ( const SBallGenerationParameters & BallGenerationParameters );
         
@@ -31,6 +32,7 @@ namespace PE
         void DrawBall ( const SBall& Ball );
         void DrawBox ( const BoundingBox & Box );
         void DrawBalls ();
+        void DrawBallsLocations();
         void DrawWorld (); 
         void SimulationStep ( float DeltaTime );
         void IntegrateLinear( float DeltaTime );
@@ -41,8 +43,7 @@ namespace PE
         Camera3D m_Camera;
         std::vector<SBall> m_Balls; 
         BoundingBox m_WorldBox;
-        float m_Gravity; 
-        float m_BallsRestitution;
+        SSceneParameters m_SceneParameters; 
         
         private:
         std::array<BoundingBox, 6> BoundingBoxToPlanes ( const BoundingBox & Box ) const;
@@ -50,8 +51,6 @@ namespace PE
         std::mt19937 m_RandomGenerator;
         float m_TimeAccumulator = 0.f;
         float m_FixedDeltaTime = 0.f;
-        int m_NumberOfSolverSteps = 1;
-        float m_Slop = 1e-5f;
-        double m_SimulationStartTime = 0.f; 
+        double m_SimulationStartTime = 0.f;
     };
 } // namespace PE

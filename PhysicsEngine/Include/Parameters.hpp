@@ -7,10 +7,10 @@ namespace PE
 {
 struct SWindowParameters
     {   
-        const int ScreenWidth = 800; 
-        const int ScreenHeight = 600;
-        const int TargetFPS = 120;
-        const std::string Title = "Physics Engine";
+        int ScreenWidth = 800; 
+        int ScreenHeight = 600;
+        int TargetFPS = 120;
+        std::string Title = "Physics Engine";
     };
     
     struct SCameraParameters
@@ -26,8 +26,10 @@ struct SWindowParameters
     {
         Vector3 MinLocation = { -5.0f, 5.0f, -5.0f };
         Vector3 MaxLocation = { 5.0f, 5.0f, 5.0f };
-        Vector3 MinLinearVelocity = { -1.0f, -1.0f, -1.0f };
-        Vector3 MaxLinearVelocity = { 1.0f, 1.0f, 1.0f };
+        //Vector3 MinLinearVelocity = { -1.0f, -1.0f, -1.0f };
+        //Vector3 MaxLinearVelocity = { 1.0f, 1.0f, 1.0f };
+        Vector3 MinLinearVelocity = { 0.f, 0.f, 0.f };
+        Vector3 MaxLinearVelocity = { 0.f, 0.f, 0.f };
         Vector3 MinAngularVelocity = { -1.0f, -1.0f , -1.0f };
         Vector3 MaxAngularVelocity = { 1.0f, 1.0f , 1.0f };
         float MinRadius = 0.5f; 
@@ -37,10 +39,11 @@ struct SWindowParameters
     
     struct SSimulationParameters 
     {
-        int SimulationFrequency = 240; 
+        int SimulationFrequency = 120; 
         int NumberOfSteps = 8;
-        int NumberOfBalls = 25;
-        int RandomSeed = 42;
+        int NumberOfBalls = 1;
+        bool PrintBallsLocation = true;
+        int RandomSeed = 1337;
         float Slop = 1e-5f;
         float Gravity = 9.81f;
         float BallsRestitution = 0.5f;

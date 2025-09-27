@@ -15,7 +15,7 @@ namespace PE
     void CScene::Update(float DeltaTime) 
     {
         UpdateCamera ( &m_Camera, CAMERA_FREE );
-
+        
         m_TimeAccumulator += DeltaTime;
         while ( m_TimeAccumulator >= m_FixedDeltaTime )
         {
@@ -46,14 +46,21 @@ namespace PE
         EndMode3D();
         DrawUI(); 
     }
-    void CScene::Initialize( const SSceneParameters & SceneParameters )
+    void CScene::ClearSimulation()
     {
-        InitWindow ( SceneParameters . WindowParameters . ScreenWidth, SceneParameters . WindowParameters . ScreenHeight, SceneParameters . WindowParameters . Title . c_str());
-        SetTargetFPS ( SceneParameters . WindowParameters . TargetFPS );
-        DisableCursor(); 
-        SetCameraParameters ( SceneParameters . CameraParameters );
-        SetSimulationParameters ( SceneParameters . SimulationParameters);
+        m_Balls . clear();
+        m_TimeAccumulator = 0.f;
+        m_SimulationStartTime = GetTime();
+    }
+    void CScene::Initialize(const SSceneParameters & SceneParameters)
+    {
+        m_SceneParameters = SceneParameters;
+        InitWindow ( m_SceneParameters . WindowParameters . ScreenWidth, m_SceneParameters . WindowParameters . ScreenHeight, SceneParameters . WindowParameters . Title . c_str());
+        SetTargetFPS ( m_SceneParameters . WindowParameters . TargetFPS );
+        SetCameraParameters ( m_SceneParameters . CameraParameters );
+        SetSimulationParameters ( m_SceneParameters . SimulationParameters);
         m_SimulationStartTime = GetTime(); 
+        DisableCursor(); 
     }
 
     void CScene::DrawUI()
@@ -64,20 +71,21 @@ namespace PE
         DrawText(Buffer, 0, 0, 20, BLACK);
         snprintf(Buffer, sizeof(Buffer), "Number of balls: %lu", m_Balls . size() );
         DrawText(Buffer, 0, 20, 20, BLACK);
-
+        snprintf(Buffer, sizeof ( Buffer ), "Frame time: %.3f ms", GetFrameTime() * 1000.f );
+        DrawText(Buffer, 0, 40, 20, BLACK);
+        if ( m_SceneParameters.SimulationParameters.PrintBallsLocation )
+        {
+            DrawBallsLocations();
+        }
     }
 
     void CScene::SetSimulationParameters ( const SSimulationParameters &SimulationParameters)
     {
         m_RandomGenerator = std::mt19937 ( SimulationParameters . RandomSeed );
         m_Balls = GenerateBalls ( SimulationParameters . NumberOfBalls, SimulationParameters . BallGenerationParameters );
-        m_Gravity = SimulationParameters . Gravity;
         m_WorldBox = { .min = SimulationParameters . WorldBoxMin, .max = SimulationParameters . WorldBoxMax };
         m_WorldPlanes = BoundingBoxToPlanes ( m_WorldBox );
-        m_BallsRestitution = SimulationParameters . BallsRestitution;
         m_FixedDeltaTime = 1.f / static_cast<float> ( SimulationParameters . SimulationFrequency );
-        m_Slop = SimulationParameters . Slop;
-        m_NumberOfSolverSteps = SimulationParameters . NumberOfSteps;
     }
 
     void CScene::DrawBall(const SBall &Ball)
@@ -94,6 +102,32 @@ namespace PE
         }
     }
 
+    void CScene::DrawBallsLocations()
+    {
+        char Buffer [64];
+        const int BallsPrintLocationBaseOffset = 60; 
+        const int BallsPrintLocationLineOffset = 20;
+        for ( auto i = 0; i < m_Balls . size(); ++ i )
+        {
+            snprintf ( Buffer, sizeof ( Buffer ), "[%d] Pos: (%.2f, %.2f, %.2f)", 
+            i, 
+            m_Balls[i] . Center . x, 
+            m_Balls[i] . Center . y, 
+            m_Balls[i] . Center . z 
+            );
+            DrawText( Buffer, 0, BallsPrintLocationBaseOffset + BallsPrintLocationLineOffset * i, 20, BLACK);
+
+            snprintf ( Buffer, sizeof ( Buffer ), "[%d] Vel: (%.2f, %.2f, %.2f)", 
+            i, 
+            m_Balls[i] . LinearVelocity . x, 
+            m_Balls[i] . LinearVelocity . y, 
+            m_Balls[i] . LinearVelocity . z 
+            );
+            
+            DrawText( Buffer, 0, BallsPrintLocationBaseOffset + BallsPrintLocationLineOffset * i + BallsPrintLocationLineOffset , 20, BLACK);
+        } 
+    }
+
     void CScene::DrawWorld()
     {
         DrawBox ( m_WorldBox ); 
@@ -108,7 +142,7 @@ namespace PE
         for (auto& Ball : m_Balls)
         {
             Ball.LinearVelocity = Vector3Add(Ball.LinearVelocity,
-                Vector3Scale({0.f, -m_Gravity, 0.f}, DeltaTime));
+                Vector3Scale({0.f, -m_SceneParameters.SimulationParameters.Gravity, 0.f}, DeltaTime));
 
             Ball.Center = Vector3Add(Ball.Center,
                 Vector3Scale(Ball.LinearVelocity, DeltaTime));
@@ -116,7 +150,7 @@ namespace PE
     }
     void CScene::ResolveCollisions(float DeltaTime)
     {
-        for ( auto i = 0; i < m_NumberOfSolverSteps; ++i )
+        for ( auto i = 0; i < m_SceneParameters . SimulationParameters . NumberOfSteps; ++i )
         {
             ResolveCollisionsWithWalls ( DeltaTime );
             ResolveCollisionsBetweenBalls ( DeltaTime );
@@ -133,7 +167,7 @@ namespace PE
                 if (Hit.IsHit)
                 {
                     // Positional correction
-                    const float Penetration = Hit.Penetration - m_Slop;
+                    const float Penetration = Hit.Penetration - m_SceneParameters.SimulationParameters.Slop;
                     if ( Penetration > 0.f ) 
                     {
                         Ball.Center = Vector3Add(Ball.Center, Vector3Scale(Hit.Normal, Penetration));
@@ -142,7 +176,7 @@ namespace PE
                     if (vn < 0.f)
                     {
                         const Vector3 vN = Vector3Scale(Hit.Normal, vn);
-                        Ball.LinearVelocity = Vector3Subtract( Ball.LinearVelocity, Vector3Scale(vN, (1.f + m_BallsRestitution)));
+                        Ball.LinearVelocity = Vector3Subtract( Ball.LinearVelocity, Vector3Scale(vN, (1.f + m_SceneParameters.SimulationParameters.BallsRestitution))   );
                     }
                 }
             }
@@ -193,7 +227,7 @@ namespace PE
             // Apply impulse only if they are moving towards each other
             if (VelocityNormal < 0.f) 
             {
-                const float ImpulseScale = -(1.f + m_BallsRestitution) * VelocityNormal / std::max(InverseMassSum, 1e-12f);
+                const float ImpulseScale = -(1.f + m_SceneParameters.SimulationParameters.BallsRestitution) * VelocityNormal / std::max(InverseMassSum, 1e-12f);
                 const Vector3 Impulse = Vector3Scale(Hit.Normal, ImpulseScale);
 
                 if (InverseMassA > 0.f) A.LinearVelocity = Vector3Subtract(A.LinearVelocity, Vector3Scale(Impulse, InverseMassA));
