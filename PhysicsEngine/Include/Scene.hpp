@@ -32,7 +32,7 @@ namespace PE
         void DrawBall ( const SBall& Ball );
         void DrawBox ( const BoundingBox & Box );
         void DrawBalls ();
-        void DrawBallsLocations();
+        void DrawBallsDebugInfo();
         void DrawWorld (); 
         void SimulationStep ( float DeltaTime );
         void IntegrateLinear( float DeltaTime );

@@ -73,9 +73,9 @@ namespace PE
         DrawText(Buffer, 0, 20, 20, BLACK);
         snprintf(Buffer, sizeof ( Buffer ), "Frame time: %.3f ms", GetFrameTime() * 1000.f );
         DrawText(Buffer, 0, 40, 20, BLACK);
-        if ( m_SceneParameters.SimulationParameters.PrintBallsLocation )
+        if ( m_SceneParameters.SimulationParameters.PrintBallsDebugInfo )
         {
-            DrawBallsLocations();
+            DrawBallsDebugInfo();
         }
     }
 
@@ -102,7 +102,7 @@ namespace PE
         }
     }
 
-    void CScene::DrawBallsLocations()
+    void CScene::DrawBallsDebugInfo()
     {
         char Buffer [64];
         const int BallsPrintLocationBaseOffset = 60; 

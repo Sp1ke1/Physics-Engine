@@ -27,6 +27,7 @@ namespace Collision
             const float Distance = sqrtf ( DistanceSquared ); 
             OutHitResult . IsHit = true;
             OutHitResult . Normal = Vector3Normalize ( Direction );
+            OutHitResult . Penetration = SphereRadius - Distance;
             return OutHitResult; 
         }
 
