@@ -78,3 +78,20 @@ TEST ( Collision, SphereSphereCollisionIsHit )
     EXPECT_TRUE ( HitResult2 . IsHit );
     EXPECT_TRUE ( HitResult3 . IsHit );
 }
+
+TEST ( Collision, SphereBoxPenetration ) 
+{
+    const Vector3 SphereCenter { 0.f, 1.f, 0.f };
+    const float SphereRadius = 1.f; 
+
+    const BoundingBox BBox1 = { .min = { -1.f, -1.f, -1.f }, .max = { 0.f, 0.1f, 0.f } };
+    const BoundingBox BBox2 = { .min = { -1.f, -1.f, -1.f }, .max = { 0.f, 0.5f, 0.f } };
+
+
+    const PE::Collision::SHitResult HitResult1 = PE::Collision::TestSphereBox ( SphereCenter, SphereRadius, BBox1 );
+    const PE::Collision::SHitResult HitResult2 = PE::Collision::TestSphereBox ( SphereCenter, SphereRadius, BBox2 );
+    EXPECT_TRUE ( HitResult1 . IsHit );
+    EXPECT_FLOAT_EQ ( HitResult1 . Penetration, 0.1f  );
+    EXPECT_FLOAT_EQ ( HitResult2 . Penetration, 0.5f  );
+    EXPECT_TRUE ( HitResult2 . IsHit );
+}
