@@ -26,10 +26,10 @@ struct SWindowParameters
     {
         Vector3 MinLocation = { -5.0f, 5.0f, -5.0f };
         Vector3 MaxLocation = { 5.0f, 5.0f, 5.0f };
-        Vector3 MinLinearVelocity = { -1.0f, -1.0f, -1.0f };
-        Vector3 MaxLinearVelocity = { 1.0f, 1.0f, 1.0f };
-        Vector3 MinAngularVelocity = { -1.0f, -1.0f , -1.0f };
-        Vector3 MaxAngularVelocity = { 1.0f, 1.0f , 1.0f };
+        Vector3 MinLinearVelocity = { -5.0f, -5.0f, -5.0f };
+        Vector3 MaxLinearVelocity = { 5.0f, 5.0f, 5.0f };
+        Vector3 MinAngularVelocity = { -5.0f, -5.0f , -5.0f };
+        Vector3 MaxAngularVelocity = { 5.0f, 5.0f , 5.0f };
         float MinRadius = 0.5f; 
         float MaxRadius = 1.f; 
         float MassToRadius = 1.f; // Mass = Radius * MassToRadius 
@@ -39,12 +39,14 @@ struct SWindowParameters
     {
         int SimulationFrequency = 120; 
         int NumberOfSteps = 8;
-        int NumberOfBalls = 50;
+        int NumberOfBalls = 40;
         bool PrintBallsDebugInfo = false;
         int RandomSeed = 1337;
         float Slop = 0.0005f;
         float Gravity = 9.81f;
         float BallsRestitution = 0.5f;
+        float BallFriction = 0.3f;
+        float AngularDamping = 1.0f;
         Vector3 WorldBoxMin = { -7.5f, -7.5f, -7.5f }; 
         Vector3 WorldBoxMax = { 7.5f, 7.5f, 7.5f };
         SBallGenerationParameters BallGenerationParameters;

@@ -36,6 +36,7 @@ namespace PE
         void DrawWorld (); 
         void SimulationStep ( float DeltaTime );
         void IntegrateLinear( float DeltaTime );
+        void IntegrateAngular( float DeltaTime );
         void ResolveCollisions( float DeltaTime);
         void ResolveCollisionsWithWalls ( float DeltaTime );
         void ResolveCollisionsBetweenBalls ( float DeltaTime );

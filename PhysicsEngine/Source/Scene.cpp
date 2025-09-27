@@ -4,6 +4,7 @@
 #include "raymath.h"
 #include "Math.hpp"
 #include <iostream>
+#include <cmath>
 
 namespace PE 
 {
@@ -16,6 +17,11 @@ namespace PE
     {
         UpdateCamera ( &m_Camera, CAMERA_FREE );
         
+        if ( IsKeyPressed( KEY_R ) ) 
+        {
+            ClearSimulation(); 
+            m_Balls = GenerateBalls ( m_SceneParameters . SimulationParameters . NumberOfBalls, m_SceneParameters . SimulationParameters . BallGenerationParameters );
+        }
         m_TimeAccumulator += DeltaTime;
         while ( m_TimeAccumulator >= m_FixedDeltaTime )
         {
@@ -91,7 +97,41 @@ namespace PE
     void CScene::DrawBall(const SBall &Ball)
     {   
         DrawSphere( Ball . Center, Ball . Radius, Ball . Color );
-        DrawSphereWires( Ball . Center, Ball . Radius, 8, 8, BLACK);
+        // DrawSphereWires( Ball . Center, Ball . Radius, 8, 8, BLACK);
+
+            // 1) Маркеры осей на поверхности (красный/зелёный/синий)
+        Vector3 localX = { Ball.Radius, 0.f, 0.f };
+        Vector3 localY = { 0.f, Ball.Radius, 0.f };
+        Vector3 localZ = { 0.f, 0.f, Ball.Radius };
+
+        Vector3 worldX = Vector3Add(Ball.Center, Vector3RotateByQuaternion(localX, Ball.Rotation));
+        Vector3 worldY = Vector3Add(Ball.Center, Vector3RotateByQuaternion(localY, Ball.Rotation));
+        Vector3 worldZ = Vector3Add(Ball.Center, Vector3RotateByQuaternion(localZ, Ball.Rotation));
+
+        DrawLine3D(Ball.Center, worldX, RED);
+        DrawLine3D(Ball.Center, worldY, GREEN);
+        DrawLine3D(Ball.Center, worldZ, BLUE);
+
+        const float markerSize = Ball.Radius * 0.12f;
+        DrawCube(worldX, markerSize, markerSize, markerSize, RED);
+        DrawCube(worldY, markerSize, markerSize, markerSize, GREEN);
+        DrawCube(worldZ, markerSize, markerSize, markerSize, BLUE);
+
+        // 2) Экваториальное кольцо (четко видно вращение)
+        // нарисуем круг в локальной плоскости XZ (y = 0), повернём кватернионом и соединим сегментами
+        const int segments = 36; // больше = круг более гладкий
+        const float twoPi = 6.28318530718f;
+        Vector3 prev = { Ball.Radius, 0.f, 0.f };
+        prev = Vector3Add(Ball.Center, Vector3RotateByQuaternion(prev, Ball.Rotation));
+        for (int s = 1; s <= segments; ++s)
+        {
+            float t = (float)s / (float)segments;
+            float ang = t * twoPi;
+            Vector3 localP = { Ball.Radius * cosf(ang), 0.f, Ball.Radius * sinf(ang) };
+            Vector3 worldP = Vector3Add(Ball.Center, Vector3RotateByQuaternion(localP, Ball.Rotation));
+            DrawLine3D(prev, worldP, DARKGRAY);
+            prev = worldP;
+        }
     }
 
     void CScene::DrawBalls()
@@ -117,14 +157,21 @@ namespace PE
             );
             DrawText( Buffer, 0, BallsPrintLocationBaseOffset + BallsPrintLocationLineOffset * i, 20, BLACK);
 
-            snprintf ( Buffer, sizeof ( Buffer ), "[%d] Vel: (%.2f, %.2f, %.2f)", 
+            snprintf ( Buffer, sizeof ( Buffer ), "[%d] Lin Vel: (%.2f, %.2f, %.2f)", 
             i, 
             m_Balls[i] . LinearVelocity . x, 
             m_Balls[i] . LinearVelocity . y, 
             m_Balls[i] . LinearVelocity . z 
             );
-            
             DrawText( Buffer, 0, BallsPrintLocationBaseOffset + BallsPrintLocationLineOffset * i + BallsPrintLocationLineOffset , 20, BLACK);
+
+            snprintf ( Buffer, sizeof ( Buffer ), "[%d] Ang Vel: (%.2f, %.2f, %.2f)", 
+            i, 
+            m_Balls[i] . AngularVelocity . x, 
+            m_Balls[i] . AngularVelocity . y, 
+            m_Balls[i] . AngularVelocity . z 
+            );
+            DrawText( Buffer, 0, BallsPrintLocationBaseOffset + BallsPrintLocationLineOffset * i + BallsPrintLocationLineOffset * 2, 20, BLACK);
         } 
     }
 
@@ -135,6 +182,7 @@ namespace PE
     void CScene::SimulationStep (float DeltaTime)
     {
         IntegrateLinear( DeltaTime );
+        IntegrateAngular( DeltaTime );
         ResolveCollisions ( DeltaTime );
     }
     void CScene::IntegrateLinear( float DeltaTime )
@@ -146,6 +194,31 @@ namespace PE
 
             Ball.Center = Vector3Add(Ball.Center,
                 Vector3Scale(Ball.LinearVelocity, DeltaTime));
+        }
+    }
+
+    void CScene::IntegrateAngular( float DeltaTime )
+    {
+        for (auto & Ball : m_Balls)
+        {
+            // Update rotation quaternion from angular velocity (axis-angle)
+            const float omega = Vector3Length(Ball.AngularVelocity);
+            if (omega > 1e-8f)
+            {
+                const Vector3 axis = Vector3Scale(Ball.AngularVelocity, 1.0f / omega);
+                const float angle = omega * DeltaTime; // radians
+                const Quaternion dq = QuaternionFromAxisAngle(axis, angle);
+                Ball.Rotation = QuaternionMultiply(dq, Ball.Rotation);
+                Ball.Rotation = QuaternionNormalize(Ball.Rotation);
+            }
+
+            // Apply angular damping (exponential decay) so spin reduces over time
+            const float damping = m_SceneParameters.SimulationParameters.AngularDamping;
+            if (damping > 0.f)
+            {
+                const float factor = expf(-damping * DeltaTime);
+                Ball.AngularVelocity = Vector3Scale(Ball.AngularVelocity, factor);
+            }
         }
     }
     void CScene::ResolveCollisions(float DeltaTime)
@@ -176,7 +249,73 @@ namespace PE
                     if (vn < 0.f)
                     {
                         const Vector3 vN = Vector3Scale(Hit.Normal, vn);
+                        // normal impulse (instant velocity change)
                         Ball.LinearVelocity = Vector3Subtract( Ball.LinearVelocity, Vector3Scale(vN, (1.f + m_SceneParameters.SimulationParameters.BallsRestitution))   );
+
+                        // Impulse-based tangential friction -> angular velocity transfer
+                        // Use pre-impulse tangential velocity to compute tangent impulse jt that couples
+                        // linear and angular response using the sphere's moment of inertia.
+                        const Vector3 vPre = Ball.LinearVelocity; // before normal impulse
+                        // Tangential component before normal impulse
+                        const Vector3 vN_pre = Vector3Scale(Hit.Normal, Vector3DotProduct(vPre, Hit.Normal));
+                        Vector3 tangentialVelPre = Vector3Subtract(vPre, vN_pre);
+                        const float vtLen = Vector3Length(tangentialVelPre);
+                        if (vtLen > 1e-6f)
+                        {
+                            const Vector3 tangentDir = Vector3Scale(tangentialVelPre, 1.0f / vtLen);
+
+                            // inverse mass
+                            const float invMass = (Ball.Mass > 0.f) ? 1.0f / Ball.Mass : 0.f;
+
+                            // normal impulse magnitude estimate jn = (1+e)*(-vn) / invMass
+                            float jn = 0.f;
+                            if (invMass > 0.f)
+                            {
+                                jn = (1.f + m_SceneParameters.SimulationParameters.BallsRestitution) * (-vn) / invMass;
+                            }
+
+                            // moment of inertia for solid sphere: I = 2/5 m r^2
+                            const float I = 0.4f * Ball.Mass * Ball.Radius * Ball.Radius;
+                            const float r2_over_I = (I > 1e-12f) ? (Ball.Radius * Ball.Radius) / I : 0.f;
+
+                            // desired tangential impulse magnitude to remove vt: jtNeeded = -vt / (invMass + r^2/I)
+                            float jtNeeded = 0.f;
+                            const float denom = invMass + r2_over_I;
+                            if (denom > 1e-12f)
+                            {
+                                jtNeeded = -vtLen / denom; // negative to oppose tangential velocity
+                            }
+
+                            // Coulomb clamp
+                            const float mu = m_SceneParameters.SimulationParameters.BallFriction;
+                            const float jtMax = mu * jn; // positive
+
+                            // clamp jtNeeded between -jtMax and +jtMax
+                            float jt = jtNeeded;
+                            if (jt < -jtMax) jt = -jtMax;
+                            if (jt > jtMax) jt = jtMax;
+
+                            // apply linear tangential impulse: Δv = jt * invMass along tangentDir
+                            if (invMass > 0.f)
+                            {
+                                Ball.LinearVelocity = Vector3Add(Ball.LinearVelocity, Vector3Scale(tangentDir, jt * invMass));
+                            }
+
+                            // apply angular change: Δω = (r × Jt) / I ; magnitude = r * jt / I, axis = cross(N, tangent)
+                            if (I > 1e-12f)
+                            {
+                                const float spinTransferScale = 0.5f; // tune if needed
+                                const float deltaOmegaMag = (Ball.Radius * jt) / I * spinTransferScale; // jt may be negative
+                                Vector3 axis = Vector3CrossProduct(Hit.Normal, tangentDir);
+                                const float axisLen = Vector3Length(axis);
+                                if (axisLen > 1e-6f)
+                                {
+                                    axis = Vector3Scale(axis, 1.0f / axisLen);
+                                    Vector3 deltaOmega = Vector3Scale(axis, deltaOmegaMag);
+                                    Ball.AngularVelocity = Vector3Add(Ball.AngularVelocity, deltaOmega);
+                                }
+                            }
+                        }
                     }
                 }
             }
