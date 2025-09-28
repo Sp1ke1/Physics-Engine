@@ -192,6 +192,14 @@ namespace PE
             Ball.LinearVelocity = Vector3Add(Ball.LinearVelocity,
                 Vector3Scale({0.f, -m_SceneParameters.SimulationParameters.Gravity, 0.f}, DeltaTime));
 
+            // Exponential linear damping (models simple drag / energy dissipation)
+            const float linearDamping = m_SceneParameters.SimulationParameters.LinearDamping;
+            if (linearDamping > 0.f)
+            {
+                const float factor = expf(-linearDamping * DeltaTime);
+                Ball.LinearVelocity = Vector3Scale(Ball.LinearVelocity, factor);
+            }
+
             Ball.Center = Vector3Add(Ball.Center,
                 Vector3Scale(Ball.LinearVelocity, DeltaTime));
         }

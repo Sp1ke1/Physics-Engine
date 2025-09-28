@@ -46,6 +46,7 @@ struct SWindowParameters
         float Gravity = 9.81f;
         float BallsRestitution = 0.5f;
         float BallFriction = 0.3f;
+        float LinearDamping = 0.2f;
         float AngularDamping = 1.0f;
         Vector3 WorldBoxMin = { -7.5f, -7.5f, -7.5f }; 
         Vector3 WorldBoxMax = { 7.5f, 7.5f, 7.5f };
