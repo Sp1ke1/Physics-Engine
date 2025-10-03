@@ -263,70 +263,131 @@ namespace PE
 
     void CScene::ResolveCollisionPair(SPhysicsBody &BodyA, SPhysicsBody &BodyB, float DeltaTime)
     {
-        if ( BodyA.IsStatic && BodyB.IsStatic ) 
+        if (BodyA.IsStatic && BodyB.IsStatic)
         {
-            return; 
+            return;
         }
 
-        const PE::Collision::SHitResult Hit = PE::Collision::TestCollision ( BodyA, BodyB );
+        const PE::Collision::SHitResult Hit = PE::Collision::TestCollision(BodyA, BodyB);
         if (Hit.IsHit)
         {
             // Positional correction
             const float Penetration = Hit.Penetration - m_SceneParameters.SimulationParameters.Slop;
-            const float SumInvMass = BodyA.InvMass + BodyB.InvMass;
-            if ( Penetration > 0.f ) 
+            const float SumInvMass  = BodyA.InvMass + BodyB.InvMass;
+            if (Penetration > 0.f && SumInvMass > 0.f)
             {
-                if ( SumInvMass > 0.f ) 
+                const Vector3 Correction = Vector3Scale(Hit.Normal, Penetration / SumInvMass);
+                if (!BodyA.IsStatic)
                 {
-                    const Vector3 Correction = Vector3Scale(Hit.Normal, Penetration / SumInvMass);
-                    if (!BodyA.IsStatic)
-                    {
-                        BodyA.Position = Vector3Add(BodyA.Position, Vector3Scale(Correction, BodyA.InvMass));
-                    }
-                    if (!BodyB.IsStatic)
-                    {
-                        BodyB.Position = Vector3Subtract(BodyB.Position, Vector3Scale(Correction, BodyB.InvMass));
-                    }
+                    BodyA.Position = Vector3Add(BodyA.Position, Vector3Scale(Correction, BodyA.InvMass));
+                }
+                if (!BodyB.IsStatic)
+                {
+                    BodyB.Position = Vector3Subtract(BodyB.Position, Vector3Scale(Correction, BodyB.InvMass));
                 }
             }
-            // Velocity change (impulse)
-            const Vector3 RelativeVelocity = Vector3Subtract( BodyA . LinearVelocity, BodyB . LinearVelocity);
-            const float RelativeNormalVelocity = Vector3DotProduct(RelativeVelocity, Hit.Normal);
-            if ( RelativeNormalVelocity < 0.f) 
-            {
-                // linear impulse (instant velocity change)
-                const float CoefficientOfRestitution = std::fmin(BodyA.Restitution, BodyB.Restitution);
-                const float NormalImpulseMagnitude = (1.f + CoefficientOfRestitution) * (-RelativeNormalVelocity) / SumInvMass;
-                const Vector3 NormalImpulse = Vector3Scale(Hit.Normal, NormalImpulseMagnitude);
 
-                if ( ! BodyA.IsStatic )
+
+            const Vector3 RelativeVelocity = Vector3Subtract(BodyA.LinearVelocity, BodyB.LinearVelocity);
+            const float   RelativeNormalVelocity = Vector3DotProduct(RelativeVelocity, Hit.Normal);
+
+            if (RelativeNormalVelocity < 0.f)
+            {
+                // ---------- Normal impulse (linear) ----------
+                const float CoefficientOfRestitution = std::fmin(BodyA.Restitution, BodyB.Restitution);
+                const float NormalImpulseMagnitude   = (1.f + CoefficientOfRestitution) * (-RelativeNormalVelocity) / (SumInvMass > 0.f ? SumInvMass : 1.f);
+                const Vector3 NormalImpulse          = Vector3Scale(Hit.Normal, NormalImpulseMagnitude);
+
+                if (!BodyA.IsStatic)
                 {
                     BodyA.LinearVelocity = Vector3Add(BodyA.LinearVelocity, Vector3Scale(NormalImpulse, BodyA.InvMass));
                 }
-                if ( ! BodyB.IsStatic )
+                if (!BodyB.IsStatic)
                 {
                     BodyB.LinearVelocity = Vector3Subtract(BodyB.LinearVelocity, Vector3Scale(NormalImpulse, BodyB.InvMass));
                 }
-                /* 
-                // angular impulse (instant angular velocity change)
-                const float MomentOfInertiaA = BodyA.Shape.GetMomentOfInertia( (BodyA.IsStatic) ? 0.f : BodyA.Mass );
-                const float MomentOfInertiaB = BodyB.Shape.GetMomentOfInertia( (BodyB.IsStatic) ? 0.f : BodyB.Mass );
+
+                // ---------- Angular impulse from normal ----------
+                const float MomentOfInertiaA = BodyA.Shape.GetMomentOfInertia(BodyA.IsStatic ? 0.f : BodyA.Mass);
+                const float MomentOfInertiaB = BodyB.Shape.GetMomentOfInertia(BodyB.IsStatic ? 0.f : BodyB.Mass);
                 const float InverseMomentOfIntertiaA = (MomentOfInertiaA > 0.f && !BodyA.IsStatic) ? (1.f / MomentOfInertiaA) : 0.f;
                 const float InverseMomentOfIntertiaB = (MomentOfInertiaB > 0.f && !BodyB.IsStatic) ? (1.f / MomentOfInertiaB) : 0.f;
+
                 const Vector3 RelativeContactPositionBodyA = Vector3Subtract(Hit.ContactPoint, BodyA.Position);
-                const Vector3 RelativeContactPositionBodyB = Vector3Subtract(Hit.ContactPoint, BodyB.Position);            
-                
-                if ( ! BodyA.IsStatic ) 
-                { 
-                    BodyA.AngularVelocity = Vector3Add(BodyA.AngularVelocity, Vector3Scale(Vector3CrossProduct(RelativeContactPositionBodyA, NormalImpulse), InverseMomentOfIntertiaA)); 
+                const Vector3 RelativeContactPositionBodyB = Vector3Subtract(Hit.ContactPoint, BodyB.Position);
+
+                if (!BodyA.IsStatic)
+                {
+                    const Vector3 DeltaAngularVelocityA =
+                        Vector3Scale(Vector3CrossProduct(RelativeContactPositionBodyA, NormalImpulse), InverseMomentOfIntertiaA);
+                    BodyA.AngularVelocity = Vector3Add(BodyA.AngularVelocity, DeltaAngularVelocityA);
                 }
-                if ( ! BodyB.IsStatic ) 
-                { 
-                    BodyB.AngularVelocity = Vector3Subtract(BodyB.AngularVelocity, Vector3Scale(Vector3CrossProduct(RelativeContactPositionBodyB, NormalImpulse), InverseMomentOfIntertiaB)); 
+                if (!BodyB.IsStatic)
+                {
+                    const Vector3 DeltaAngularVelocityB =
+                        Vector3Scale(Vector3CrossProduct(RelativeContactPositionBodyB, Vector3Negate(NormalImpulse)), InverseMomentOfIntertiaB);
+                    BodyB.AngularVelocity = Vector3Add(BodyB.AngularVelocity, DeltaAngularVelocityB);
                 }
-                */
+
+                // ---------- Tangential (friction) impulse: simple model ----------
+                // Contact velocities including angular part: v = v_lin + ω × r
+                const Vector3 ContactVelocityBodyA =
+                    Vector3Add(BodyA.LinearVelocity, Vector3CrossProduct(BodyA.AngularVelocity, RelativeContactPositionBodyA));
+                const Vector3 ContactVelocityBodyB =
+                    Vector3Add(BodyB.LinearVelocity, Vector3CrossProduct(BodyB.AngularVelocity, RelativeContactPositionBodyB));
+                const Vector3 RelativeContactVelocity = Vector3Subtract(ContactVelocityBodyA, ContactVelocityBodyB);
+
+                const Vector3 RelativeContactNormalComponent =
+                    Vector3Scale(Hit.Normal, Vector3DotProduct(RelativeContactVelocity, Hit.Normal));
+                const Vector3 RelativeContactTangentVelocity =
+                    Vector3Subtract(RelativeContactVelocity, RelativeContactNormalComponent);
+
+                const float RelativeContactTangentSpeed = Vector3Length(RelativeContactTangentVelocity);
+                if (RelativeContactTangentSpeed > 0.f )
+                {
+                    const Vector3 TangentDirection = Vector3Normalize (RelativeContactTangentVelocity );
+
+                    // Simple denominator: only inverse masses (no angular terms)
+                    float TangentImpulseMagnitude = 0.f;
+                    if (SumInvMass > 0.f)
+                    {
+                        TangentImpulseMagnitude =
+                            -Vector3DotProduct(RelativeContactVelocity, TangentDirection) / SumInvMass;
+                    }
+
+                    // Coulomb clamp: |Jt| <= μ * |Jn|
+                    const float FrictionCoefficient = std::fmax(0.f, std::fmin(BodyA.Friction, BodyB.Friction));
+                    const float MaxFrictionImpulse  = FrictionCoefficient * std::fabs(NormalImpulseMagnitude);
+                    TangentImpulseMagnitude = Clamp (TangentImpulseMagnitude, -MaxFrictionImpulse, MaxFrictionImpulse);
+
+                    const Vector3 TangentialImpulse = Vector3Scale(TangentDirection, TangentImpulseMagnitude);
+
+                    // Apply to linear velocities
+                    if (!BodyA.IsStatic)
+                    {
+                        BodyA.LinearVelocity = Vector3Add(BodyA.LinearVelocity, Vector3Scale(TangentialImpulse, BodyA.InvMass));
+                    }
+                    if (!BodyB.IsStatic)
+                    {
+                        BodyB.LinearVelocity = Vector3Subtract(BodyB.LinearVelocity, Vector3Scale(TangentialImpulse, BodyB.InvMass));
+                    }
+
+                    // Apply to angular velocities (Δω = I^{-1} (r × Jt))
+                    if (!BodyA.IsStatic && InverseMomentOfIntertiaA > 0.f)
+                    {
+                        const Vector3 DeltaAngularVelocityFrictionA =
+                            Vector3Scale(Vector3CrossProduct(RelativeContactPositionBodyA, TangentialImpulse), InverseMomentOfIntertiaA);
+                        BodyA.AngularVelocity = Vector3Add(BodyA.AngularVelocity, DeltaAngularVelocityFrictionA);
+                    }
+                    if (!BodyB.IsStatic && InverseMomentOfIntertiaB > 0.f)
+                    {
+                        const Vector3 DeltaAngularVelocityFrictionB =
+                            Vector3Scale(Vector3CrossProduct(RelativeContactPositionBodyB, TangentialImpulse), InverseMomentOfIntertiaB);
+                        BodyB.AngularVelocity = Vector3Subtract(BodyB.AngularVelocity, DeltaAngularVelocityFrictionB); // знак минус, т.к. импульс у B противоположный
+                    }
+                }
             }
-        }   
+        }
     }
     std::array<SPhysicsBody, 6> CScene::BoundingBoxToPlanes(const BoundingBox &Box) const
     {
