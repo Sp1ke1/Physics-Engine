@@ -19,9 +19,19 @@ namespace PE
         
         if ( IsKeyPressed( KEY_R ) ) 
         {
-            ClearSimulation(); 
-            m_Balls = GenerateBalls ( m_SceneParameters . SimulationParameters . NumberOfBalls, m_SceneParameters . SimulationParameters . BallGenerationParameters );
+            RestartSimulation();
         }
+
+        if ( IsKeyPressed( KEY_ENTER ) ) 
+        {
+            m_IsPaused = !m_IsPaused;
+        }
+
+        if ( m_IsPaused ) 
+        {
+            return; 
+        }
+
         m_TimeAccumulator += DeltaTime;
         while ( m_TimeAccumulator >= m_FixedDeltaTime )
         {
@@ -47,15 +57,19 @@ namespace PE
     {
         ClearBackground(RAYWHITE);
         BeginMode3D(m_Camera);
-            DrawWorld();
-            DrawBalls(); 
+            for ( const auto & Object : m_Objects )
+            {
+                DrawObject ( Object );
+            }
         EndMode3D();
         DrawUI(); 
     }
     void CScene::ClearSimulation()
     {
-        m_Balls . clear();
+        m_Objects . clear();
+        m_PhysicsBodies . clear();
         m_TimeAccumulator = 0.f;
+        m_NumberOfBalls = 0; 
         m_SimulationStartTime = GetTime();
     }
     void CScene::Initialize(const SSceneParameters & SceneParameters)
@@ -66,7 +80,8 @@ namespace PE
         SetCameraParameters ( m_SceneParameters . CameraParameters );
         SetSimulationParameters ( m_SceneParameters . SimulationParameters);
         m_SimulationStartTime = GetTime(); 
-        DisableCursor(); 
+        DisableCursor();
+        RestartSimulation();
     }
 
     void CScene::DrawUI()
@@ -75,73 +90,86 @@ namespace PE
         char Buffer [64];
         snprintf(Buffer, sizeof(Buffer), "Time: %.2f s", ElapsedTime );
         DrawText(Buffer, 0, 0, 20, BLACK);
-        snprintf(Buffer, sizeof(Buffer), "Number of balls: %lu", m_Balls . size() );
+        snprintf(Buffer, sizeof(Buffer), "Number of balls: %d", m_NumberOfBalls );
         DrawText(Buffer, 0, 20, 20, BLACK);
         snprintf(Buffer, sizeof ( Buffer ), "Frame time: %.3f ms", GetFrameTime() * 1000.f );
         DrawText(Buffer, 0, 40, 20, BLACK);
         if ( m_SceneParameters.SimulationParameters.PrintBallsDebugInfo )
         {
-            DrawBallsDebugInfo();
+            // DrawBallsDebugInfo();
+        }
+    }
+
+    void CScene::DrawObject(const SSimulationObject & Object )
+    {
+        const auto & Body = m_PhysicsBodies [ Object . PhysicsBodyIndex ];
+        switch ( Body. Shape . Type )
+        {
+            case EShapeType::Sphere:
+            {
+                DrawBall ( Body . Position, 
+                           Body . Shape . Sphere . Radius, 
+                           Body . Rotation, 
+                           Object . Color );
+                break;
+            }
+
+            case EShapeType::Box:
+            {
+                DrawBox ( { .min = Vector3Subtract ( Body . Position, Body . Shape . Box . HalfSize ),
+                            .max = Vector3Add ( Body . Position, Body . Shape . Box . HalfSize ) }, 
+                          Object . Color );
+                break;
+            }
         }
     }
 
     void CScene::SetSimulationParameters ( const SSimulationParameters &SimulationParameters)
     {
         m_RandomGenerator = std::mt19937 ( SimulationParameters . RandomSeed );
-        m_Balls = GenerateBalls ( SimulationParameters . NumberOfBalls, SimulationParameters . BallGenerationParameters );
         m_WorldBox = { .min = SimulationParameters . WorldBoxMin, .max = SimulationParameters . WorldBoxMax };
-        m_WorldPlanes = BoundingBoxToPlanes ( m_WorldBox );
         m_FixedDeltaTime = 1.f / static_cast<float> ( SimulationParameters . SimulationFrequency );
     }
 
-    void CScene::DrawBall(const SBall &Ball)
+    void CScene::DrawBall( const Vector3 & Location, float Radius, const Quaternion & Rotation, const Color & Color )
     {   
-        DrawSphere( Ball . Center, Ball . Radius, Ball . Color );
-        // DrawSphereWires( Ball . Center, Ball . Radius, 8, 8, BLACK);
+        DrawSphere ( Location, Radius, Color );
+        Vector3 localX = { Radius, 0.f, 0.f };
+        Vector3 localY = { 0.f, Radius, 0.f };
+        Vector3 localZ = { 0.f, 0.f, Radius };
 
-            // 1) Маркеры осей на поверхности (красный/зелёный/синий)
-        Vector3 localX = { Ball.Radius, 0.f, 0.f };
-        Vector3 localY = { 0.f, Ball.Radius, 0.f };
-        Vector3 localZ = { 0.f, 0.f, Ball.Radius };
+        Vector3 worldX = Vector3Add(Location, Vector3RotateByQuaternion(localX, Rotation));
+        Vector3 worldY = Vector3Add(Location, Vector3RotateByQuaternion(localY, Rotation));
+        Vector3 worldZ = Vector3Add(Location, Vector3RotateByQuaternion(localZ, Rotation));
 
-        Vector3 worldX = Vector3Add(Ball.Center, Vector3RotateByQuaternion(localX, Ball.Rotation));
-        Vector3 worldY = Vector3Add(Ball.Center, Vector3RotateByQuaternion(localY, Ball.Rotation));
-        Vector3 worldZ = Vector3Add(Ball.Center, Vector3RotateByQuaternion(localZ, Ball.Rotation));
+        /*
+        DrawLine3D(Location, worldX, Color);
+        DrawLine3D(Location, worldY, GREEN);
+        DrawLine3D(Location, worldZ, BLUE);
 
-        DrawLine3D(Ball.Center, worldX, RED);
-        DrawLine3D(Ball.Center, worldY, GREEN);
-        DrawLine3D(Ball.Center, worldZ, BLUE);
-
-        const float markerSize = Ball.Radius * 0.12f;
+        const float markerSize = Radius * 0.12f;
         DrawCube(worldX, markerSize, markerSize, markerSize, RED);
         DrawCube(worldY, markerSize, markerSize, markerSize, GREEN);
         DrawCube(worldZ, markerSize, markerSize, markerSize, BLUE);
 
-        // 2) Экваториальное кольцо (четко видно вращение)
-        // нарисуем круг в локальной плоскости XZ (y = 0), повернём кватернионом и соединим сегментами
-        const int segments = 36; // больше = круг более гладкий
+        
+        const int segments = 36;
         const float twoPi = 6.28318530718f;
-        Vector3 prev = { Ball.Radius, 0.f, 0.f };
-        prev = Vector3Add(Ball.Center, Vector3RotateByQuaternion(prev, Ball.Rotation));
+        Vector3 prev = { Radius, 0.f, 0.f };
+        prev = Vector3Add(Location, Vector3RotateByQuaternion(prev, Rotation));
         for (int s = 1; s <= segments; ++s)
         {
             float t = (float)s / (float)segments;
             float ang = t * twoPi;
-            Vector3 localP = { Ball.Radius * cosf(ang), 0.f, Ball.Radius * sinf(ang) };
-            Vector3 worldP = Vector3Add(Ball.Center, Vector3RotateByQuaternion(localP, Ball.Rotation));
+            Vector3 localP = { Radius * cosf(ang), 0.f, Radius * sinf(ang) };
+            Vector3 worldP = Vector3Add(Location, Vector3RotateByQuaternion(localP, Rotation));
             DrawLine3D(prev, worldP, DARKGRAY);
             prev = worldP;
         }
+        */
     }
 
-    void CScene::DrawBalls()
-    {   
-        for ( const auto & Ball : m_Balls ) 
-        {
-            DrawBall ( Ball ); 
-        }
-    }
-
+    /* 
     void CScene::DrawBallsDebugInfo()
     {
         char Buffer [64];
@@ -174,257 +202,231 @@ namespace PE
             DrawText( Buffer, 0, BallsPrintLocationBaseOffset + BallsPrintLocationLineOffset * i + BallsPrintLocationLineOffset * 2, 20, BLACK);
         } 
     }
-
-    void CScene::DrawWorld()
-    {
-        DrawBox ( m_WorldBox ); 
-    }
+*/
     void CScene::SimulationStep (float DeltaTime)
     {
-        IntegrateLinear( DeltaTime );
-        IntegrateAngular( DeltaTime );
+        IntegrateForces( DeltaTime );
         ResolveCollisions ( DeltaTime );
     }
-    void CScene::IntegrateLinear( float DeltaTime )
+    void CScene::IntegrateForces( float DeltaTime )
     {
-        for (auto& Ball : m_Balls)
+        for (auto & PhysicsBody : m_PhysicsBodies )
         {
-            Ball.LinearVelocity = Vector3Add(Ball.LinearVelocity,
+            if ( PhysicsBody . IsStatic )
+            {
+                continue; 
+            }
+            // Apply gravity force
+            PhysicsBody.LinearVelocity = Vector3Add(PhysicsBody.LinearVelocity,
                 Vector3Scale({0.f, -m_SceneParameters.SimulationParameters.Gravity, 0.f}, DeltaTime));
 
-            // Exponential linear damping (models simple drag / energy dissipation)
-            const float linearDamping = m_SceneParameters.SimulationParameters.LinearDamping;
-            if (linearDamping > 0.f)
+            // Apply linear damping (exponential decay) so velocity reduces over time
+            if (PhysicsBody.LinearDamping  > 0.f)
             {
-                const float factor = expf(-linearDamping * DeltaTime);
-                Ball.LinearVelocity = Vector3Scale(Ball.LinearVelocity, factor);
+                const float LinearDampingFactor = expf(-PhysicsBody.LinearDamping * DeltaTime);
+                PhysicsBody.LinearVelocity = Vector3Scale(PhysicsBody.LinearVelocity, LinearDampingFactor);
             }
-
-            Ball.Center = Vector3Add(Ball.Center,
-                Vector3Scale(Ball.LinearVelocity, DeltaTime));
-        }
-    }
-
-    void CScene::IntegrateAngular( float DeltaTime )
-    {
-        for (auto & Ball : m_Balls)
-        {
+            // Update position from linear velocity
+            PhysicsBody.Position = Vector3Add(PhysicsBody.Position, Vector3Scale(PhysicsBody.LinearVelocity, DeltaTime));
+            
             // Update rotation quaternion from angular velocity (axis-angle)
-            const float omega = Vector3Length(Ball.AngularVelocity);
-            if (omega > 1e-8f)
+            const float Omega = Vector3Length(PhysicsBody.AngularVelocity);
+            if (Omega > 1e-8f)
             {
-                const Vector3 axis = Vector3Scale(Ball.AngularVelocity, 1.0f / omega);
-                const float angle = omega * DeltaTime; // radians
-                const Quaternion dq = QuaternionFromAxisAngle(axis, angle);
-                Ball.Rotation = QuaternionMultiply(dq, Ball.Rotation);
-                Ball.Rotation = QuaternionNormalize(Ball.Rotation);
+                const Vector3 Axis = Vector3Scale(PhysicsBody.AngularVelocity, 1.0f / Omega);
+                const float Angle = Omega * DeltaTime;
+                const Quaternion DeltaRotation = QuaternionFromAxisAngle(Axis, Angle);
+                PhysicsBody.Rotation = QuaternionMultiply(DeltaRotation, PhysicsBody.Rotation);
+                PhysicsBody.Rotation = QuaternionNormalize(PhysicsBody.Rotation);
             }
 
             // Apply angular damping (exponential decay) so spin reduces over time
-            const float damping = m_SceneParameters.SimulationParameters.AngularDamping;
-            if (damping > 0.f)
+            if (PhysicsBody.AngularDamping > 0.f)
             {
-                const float factor = expf(-damping * DeltaTime);
-                Ball.AngularVelocity = Vector3Scale(Ball.AngularVelocity, factor);
+                const float Factor = expf(-PhysicsBody.AngularDamping * DeltaTime);
+                PhysicsBody.AngularVelocity = Vector3Scale(PhysicsBody.AngularVelocity, Factor);
             }
         }
     }
+        
     void CScene::ResolveCollisions(float DeltaTime)
     {
-        for ( auto i = 0; i < m_SceneParameters . SimulationParameters . NumberOfSteps; ++i )
+        for ( size_t i = 0; i < m_SceneParameters . SimulationParameters . NumberOfSteps; i++ )
         {
-            ResolveCollisionsWithWalls ( DeltaTime );
-            ResolveCollisionsBetweenBalls ( DeltaTime );
-        }
-    }
-    void CScene::ResolveCollisionsWithWalls(float DeltaTime)
-    {
-        for (auto& Ball : m_Balls)
-        {
-            for (const auto& Plane : m_WorldPlanes)
+            for ( size_t j = 0; j < m_PhysicsBodies.size(); j++ ) 
             {
-                const PE::Collision::SHitResult Hit = PE::Collision::TestSphereBox(Ball.Center, Ball.Radius, Plane);
-
-                if (Hit.IsHit)
+                for ( size_t k = j + 1; k < m_PhysicsBodies.size(); k++ ) 
                 {
-                    // Positional correction
-                    const float Penetration = Hit.Penetration - m_SceneParameters.SimulationParameters.Slop;
-                    if ( Penetration > 0.f ) 
-                    {
-                        Ball.Center = Vector3Add(Ball.Center, Vector3Scale(Hit.Normal, Penetration));
-                    }
-                    const float vn = Vector3DotProduct(Ball.LinearVelocity, Hit.Normal);
-                    if (vn < 0.f)
-                    {
-                        const Vector3 vN = Vector3Scale(Hit.Normal, vn);
-                        // normal impulse (instant velocity change)
-                        Ball.LinearVelocity = Vector3Subtract( Ball.LinearVelocity, Vector3Scale(vN, (1.f + m_SceneParameters.SimulationParameters.BallsRestitution))   );
-
-                        // Impulse-based tangential friction -> angular velocity transfer
-                        // Use pre-impulse tangential velocity to compute tangent impulse jt that couples
-                        // linear and angular response using the sphere's moment of inertia.
-                        const Vector3 vPre = Ball.LinearVelocity; // before normal impulse
-                        // Tangential component before normal impulse
-                        const Vector3 vN_pre = Vector3Scale(Hit.Normal, Vector3DotProduct(vPre, Hit.Normal));
-                        Vector3 tangentialVelPre = Vector3Subtract(vPre, vN_pre);
-                        const float vtLen = Vector3Length(tangentialVelPre);
-                        if (vtLen > 1e-6f)
-                        {
-                            const Vector3 tangentDir = Vector3Scale(tangentialVelPre, 1.0f / vtLen);
-
-                            // inverse mass
-                            const float invMass = (Ball.Mass > 0.f) ? 1.0f / Ball.Mass : 0.f;
-
-                            // normal impulse magnitude estimate jn = (1+e)*(-vn) / invMass
-                            float jn = 0.f;
-                            if (invMass > 0.f)
-                            {
-                                jn = (1.f + m_SceneParameters.SimulationParameters.BallsRestitution) * (-vn) / invMass;
-                            }
-
-                            // moment of inertia for solid sphere: I = 2/5 m r^2
-                            const float I = 0.4f * Ball.Mass * Ball.Radius * Ball.Radius;
-                            const float r2_over_I = (I > 1e-12f) ? (Ball.Radius * Ball.Radius) / I : 0.f;
-
-                            // desired tangential impulse magnitude to remove vt: jtNeeded = -vt / (invMass + r^2/I)
-                            float jtNeeded = 0.f;
-                            const float denom = invMass + r2_over_I;
-                            if (denom > 1e-12f)
-                            {
-                                jtNeeded = -vtLen / denom; // negative to oppose tangential velocity
-                            }
-
-                            // Coulomb clamp
-                            const float mu = m_SceneParameters.SimulationParameters.BallFriction;
-                            const float jtMax = mu * jn; // positive
-
-                            // clamp jtNeeded between -jtMax and +jtMax
-                            float jt = jtNeeded;
-                            if (jt < -jtMax) jt = -jtMax;
-                            if (jt > jtMax) jt = jtMax;
-
-                            // apply linear tangential impulse: Δv = jt * invMass along tangentDir
-                            if (invMass > 0.f)
-                            {
-                                Ball.LinearVelocity = Vector3Add(Ball.LinearVelocity, Vector3Scale(tangentDir, jt * invMass));
-                            }
-
-                            // apply angular change: Δω = (r × Jt) / I ; magnitude = r * jt / I, axis = cross(N, tangent)
-                            if (I > 1e-12f)
-                            {
-                                const float spinTransferScale = 0.5f; // tune if needed
-                                const float deltaOmegaMag = (Ball.Radius * jt) / I * spinTransferScale; // jt may be negative
-                                Vector3 axis = Vector3CrossProduct(Hit.Normal, tangentDir);
-                                const float axisLen = Vector3Length(axis);
-                                if (axisLen > 1e-6f)
-                                {
-                                    axis = Vector3Scale(axis, 1.0f / axisLen);
-                                    Vector3 deltaOmega = Vector3Scale(axis, deltaOmegaMag);
-                                    Ball.AngularVelocity = Vector3Add(Ball.AngularVelocity, deltaOmega);
-                                }
-                            }
-                        }
-                    }
+                    ResolveCollisionsPair ( m_PhysicsBodies [ j ], m_PhysicsBodies [ k ], DeltaTime ); 
                 }
             }
         }
     }
-    void CScene::ResolveCollisionsBetweenBalls(float DeltaTime)
-{
-    for (size_t i = 0; i < m_Balls . size(); ++i)
+
+    void CScene::ResolveCollisionsPair(SPhysicsBody &BodyA, SPhysicsBody &BodyB, float DeltaTime)
     {
-        for (size_t j = i + 1; j < m_Balls . size(); ++j)
+        if ( BodyA.IsStatic && BodyB.IsStatic ) 
         {
-            SBall& A = m_Balls[i];
-            SBall& B = m_Balls[j];
+            return; 
+        }
 
-            const PE::Collision::SHitResult Hit = PE::Collision::TestSphereSphere(A.Center, A.Radius, B.Center, B.Radius);
-
-            if (!Hit.IsHit) 
+        const PE::Collision::SHitResult Hit = PE::Collision::TestCollision ( BodyA, BodyB );
+        if (Hit.IsHit)
+        {
+            std::cout << "Hit detected!" << "Id a: " << BodyA.Id << " Id b: " << BodyB.Id << " Time: " << GetTime() - m_SimulationStartTime << std::endl;
+            // Positional correction
+            const float Penetration = Hit.Penetration - m_SceneParameters.SimulationParameters.Slop;
+            const float SumInvMass = BodyA.InvMass + BodyB.InvMass;
+            if ( Penetration > 0.f ) 
             {
-                continue;
-            }
-            const float InverseMassA = (A.Mass > 0.f) ? 1.0f / A.Mass : 0.f;
-            const float InverseMassB = (B.Mass > 0.f) ? 1.0f / B.Mass : 0.f;
-            const float InverseMassSum = InverseMassA + InverseMassB;
-
-            if (InverseMassSum > 0.f)
-            {
-                const float Slop = 1e-5f;
-                const float Penetration = (Hit.Penetration > Slop) ? (Hit.Penetration - Slop) : 0.f;
-
-                if (Penetration > 0.f)
+                if ( SumInvMass > 0.f ) 
                 {
-                    const Vector3 Correction = Vector3Scale(Hit.Normal, Penetration / InverseMassSum);
-                    if (InverseMassA > 0.f) 
-                    { 
-                        A.Center = Vector3Subtract(A.Center, Vector3Scale(Correction, InverseMassA));
+                    const Vector3 Correction = Vector3Scale(Hit.Normal, Penetration / SumInvMass);
+                    if (!BodyA.IsStatic)
+                    {
+                        BodyA.Position = Vector3Add(BodyA.Position, Vector3Scale(Correction, BodyA.InvMass));
                     }
-                    if (InverseMassB > 0.f) 
-                    { 
-                        B.Center = Vector3Add(B.Center, Vector3Scale(Correction, InverseMassB));
+                    if (!BodyB.IsStatic)
+                    {
+                        BodyB.Position = Vector3Subtract(BodyB.Position, Vector3Scale(Correction, BodyB.InvMass));
                     }
                 }
             }
-
-            // Normal impulse
-            const Vector3 RelativeVelocity = Vector3Subtract(B.LinearVelocity, A.LinearVelocity);
-            const float VelocityNormal = Vector3DotProduct(RelativeVelocity, Hit.Normal);
-
-            // Apply impulse only if they are moving towards each other
-            if (VelocityNormal < 0.f) 
+            // Velocity change (impulse)
+            const Vector3 RelativeVelocity = Vector3Subtract( BodyA . LinearVelocity, BodyB . LinearVelocity);
+            const float RelativeNormalVelocity = Vector3DotProduct(RelativeVelocity, Hit.Normal);
+            if ( RelativeNormalVelocity < 0.f) 
             {
-                const float ImpulseScale = -(1.f + m_SceneParameters.SimulationParameters.BallsRestitution) * VelocityNormal / std::max(InverseMassSum, 1e-12f);
-                const Vector3 Impulse = Vector3Scale(Hit.Normal, ImpulseScale);
+                // linear impulse (instant velocity change)
+                const float CoefficientOfRestitution = std::fmin(BodyA.Restitution, BodyB.Restitution);
+                const float NormalImpulseMagnitude = (1.f + CoefficientOfRestitution) * (-RelativeNormalVelocity) / SumInvMass;
+                const Vector3 NormalImpulse = Vector3Scale(Hit.Normal, NormalImpulseMagnitude);
 
-                if (InverseMassA > 0.f) A.LinearVelocity = Vector3Subtract(A.LinearVelocity, Vector3Scale(Impulse, InverseMassA));
-                if (InverseMassB > 0.f) B.LinearVelocity = Vector3Add(B.LinearVelocity, Vector3Scale(Impulse, InverseMassB));
+                if ( ! BodyA.IsStatic )
+                {
+                    BodyA.LinearVelocity = Vector3Add(BodyA.LinearVelocity, Vector3Scale(NormalImpulse, BodyA.InvMass));
+                }
+                if ( ! BodyB.IsStatic )
+                {
+                    BodyB.LinearVelocity = Vector3Subtract(BodyB.LinearVelocity, Vector3Scale(NormalImpulse, BodyB.InvMass));
+                }
+                /* 
+                // angular impulse (instant angular velocity change)
+                const float MomentOfInertiaA = BodyA.Shape.GetMomentOfInertia( (BodyA.IsStatic) ? 0.f : BodyA.Mass );
+                const float MomentOfInertiaB = BodyB.Shape.GetMomentOfInertia( (BodyB.IsStatic) ? 0.f : BodyB.Mass );
+                const float InverseMomentOfIntertiaA = (MomentOfInertiaA > 0.f && !BodyA.IsStatic) ? (1.f / MomentOfInertiaA) : 0.f;
+                const float InverseMomentOfIntertiaB = (MomentOfInertiaB > 0.f && !BodyB.IsStatic) ? (1.f / MomentOfInertiaB) : 0.f;
+                const Vector3 RelativeContactPositionBodyA = Vector3Subtract(Hit.ContactPoint, BodyA.Position);
+                const Vector3 RelativeContactPositionBodyB = Vector3Subtract(Hit.ContactPoint, BodyB.Position);            
+                
+                if ( ! BodyA.IsStatic ) 
+                { 
+                    BodyA.AngularVelocity = Vector3Add(BodyA.AngularVelocity, Vector3Scale(Vector3CrossProduct(RelativeContactPositionBodyA, NormalImpulse), InverseMomentOfIntertiaA)); 
+                }
+                if ( ! BodyB.IsStatic ) 
+                { 
+                    BodyB.AngularVelocity = Vector3Subtract(BodyB.AngularVelocity, Vector3Scale(Vector3CrossProduct(RelativeContactPositionBodyB, NormalImpulse), InverseMomentOfIntertiaB)); 
+                }
+                */
             }
-        }
+        }   
     }
-}
-std::array<BoundingBox, 6> CScene::BoundingBoxToPlanes(const BoundingBox &Box) const
-{
+    std::array<SPhysicsBody, 6> CScene::BoundingBoxToPlanes(const BoundingBox &Box) const
+    {
+        // Create 6 thin static box bodies representing the world planes (left, right, bottom, top, front, back)
+        std::array<SPhysicsBody, 6> OutPlanes{};
+        const Vector3 min = Box.min;
+        const Vector3 max = Box.max;
 
-    std::array<BoundingBox, 6> OutPlanes{};
-    // Order: left, right, bottom, top, front, back
+        // left (x = min)
+        {
+            Vector3 center = { min.x, 0.5f * (min.y + max.y), 0.5f * (min.z + max.z) };
+            Vector3 half = { 0.f, 0.5f * (max.y - min.y), 0.5f * (max.z - min.z) };
+            OutPlanes[0] = SPhysicsBody{};
+            OutPlanes[0].Position = center;
+            OutPlanes[0].Rotation = QuaternionIdentity();
+            OutPlanes[0].Shape.Type = EShapeType::Box;
+            OutPlanes[0].Shape.Box.HalfSize = half;
+            OutPlanes[0].IsStatic = true;
+            OutPlanes[0].Mass = 0.f; OutPlanes[0].InvMass = 0.f;
+        }
 
-    // left  (x = min)
-    OutPlanes[0].min = {Box.min.x, Box.min.y, Box.min.z};
-    OutPlanes[0].max = {Box.min.x, Box.max.y, Box.max.z};
+        // right (x = max)
+        {
+            Vector3 center = { max.x, 0.5f * (min.y + max.y), 0.5f * (min.z + max.z) };
+            Vector3 half = { 0.f, 0.5f * (max.y - min.y), 0.5f * (max.z - min.z) };
+            OutPlanes[1] = SPhysicsBody{};
+            OutPlanes[1].Position = center;
+            OutPlanes[1].Rotation = QuaternionIdentity();
+            OutPlanes[1].Shape.Type = EShapeType::Box;
+            OutPlanes[1].Shape.Box.HalfSize = half;
+            OutPlanes[1].IsStatic = true;
+            OutPlanes[1].Mass = 0.f; OutPlanes[1].InvMass = 0.f;
+        }
 
-    // right (x = max)
-    OutPlanes[1].min = {Box.max.x, Box.min.y, Box.min.z};
-    OutPlanes[1].max = {Box.max.x, Box.max.y, Box.max.z};
+        // bottom (y = min)
+        {
+            Vector3 center = { 0.5f * (min.x + max.x), min.y, 0.5f * (min.z + max.z) };
+            Vector3 half = { 0.5f * (max.x - min.x), 0.f, 0.5f * (max.z - min.z) };
+            OutPlanes[2] = SPhysicsBody{};
+            OutPlanes[2].Position = center;
+            OutPlanes[2].Rotation = QuaternionIdentity();
+            OutPlanes[2].Shape.Type = EShapeType::Box;
+            OutPlanes[2].Shape.Box.HalfSize = half;
+            OutPlanes[2].IsStatic = true;
+            OutPlanes[2].Mass = 0.f; OutPlanes[2].InvMass = 0.f;
+        }
 
-    // bottom (y = min)
-    OutPlanes[2].min = {Box.min.x, Box.min.y, Box.min.z};
-    OutPlanes[2].max = {Box.max.x, Box.min.y, Box.max.z};
+        // top (y = max)
+        {
+            Vector3 center = { 0.5f * (min.x + max.x), max.y, 0.5f * (min.z + max.z) };
+            Vector3 half = { 0.5f * (max.x - min.x), 0.f, 0.5f * (max.z - min.z) };
+            OutPlanes[3] = SPhysicsBody{};
+            OutPlanes[3].Position = center;
+            OutPlanes[3].Rotation = QuaternionIdentity();
+            OutPlanes[3].Shape.Type = EShapeType::Box;
+            OutPlanes[3].Shape.Box.HalfSize = half;
+            OutPlanes[3].IsStatic = true;
+            OutPlanes[3].Mass = 0.f; OutPlanes[3].InvMass = 0.f;
+        }
 
-    // top (y = max)
-    OutPlanes[3].min = {Box.min.x, Box.max.y, Box.min.z};
-    OutPlanes[3].max = {Box.max.x, Box.max.y, Box.max.z};
+        // front (z = min)
+        {
+            Vector3 center = { 0.5f * (min.x + max.x), 0.5f * (min.y + max.y), min.z };
+            Vector3 half = { 0.5f * (max.x - min.x), 0.5f * (max.y - min.y), 0.f };
+            OutPlanes[4] = SPhysicsBody{};
+            OutPlanes[4].Position = center;
+            OutPlanes[4].Rotation = QuaternionIdentity();
+            OutPlanes[4].Shape.Type = EShapeType::Box;
+            OutPlanes[4].Shape.Box.HalfSize = half;
+            OutPlanes[4].IsStatic = true;
+            OutPlanes[4].Mass = 0.f; OutPlanes[4].InvMass = 0.f;
+        }
 
-    // front (z = min)
-    OutPlanes[4].min = {Box.min.x, Box.min.y, Box.min.z};
-    OutPlanes[4].max = {Box.max.x, Box.max.y, Box.min.z};
-
-    // back (z = max)
-    OutPlanes[5].min = {Box.min.x, Box.min.y, Box.max.z};
-    OutPlanes[5].max = {Box.max.x, Box.max.y, Box.max.z};
-
-    return OutPlanes;
-}
-    void CScene::DrawBox(const BoundingBox & Box)
+        // back (z = max)
+        {
+            Vector3 center = { 0.5f * (min.x + max.x), 0.5f * (min.y + max.y), max.z };
+            Vector3 half = { 0.5f * (max.x - min.x), 0.5f * (max.y - min.y), 0.f };
+            OutPlanes[5] = SPhysicsBody{};
+            OutPlanes[5].Position = center;
+            OutPlanes[5].Rotation = QuaternionIdentity();
+            OutPlanes[5].Shape.Type = EShapeType::Box;
+            OutPlanes[5].Shape.Box.HalfSize = half;
+            OutPlanes[5].IsStatic = true;
+            OutPlanes[5].Mass = 0.f; OutPlanes[5].InvMass = 0.f;
+        }
+        return OutPlanes;
+    }
+    void CScene::DrawBox(const BoundingBox & Box, const Color & Color)
     {
         const Vector3 Size = PE::Math::BoxSize ( Box );
         const Vector3 Center = PE::Math::BoxCenter ( Box );
-        DrawCubeWires( Center, Size.x, Size.y, Size.z, BLACK );
+        DrawCubeWires( Center, Size.x, Size.y, Size.z, Color );
     }
 
-    std::vector<SBall> CScene::GenerateBalls( int NumberOfBalls, const SBallGenerationParameters & BallGenerationParameters )
+    std::vector<SPhysicsBody> CScene::GenerateBalls( int NumberOfBalls, const SBallGenerationParameters & BallGenerationParameters )
     {
-        std::vector<SBall> OutBalls;
+        std::vector<SPhysicsBody> OutBalls;
         OutBalls.reserve( NumberOfBalls ); 
         for ( int i = 0; i < NumberOfBalls; i ++ ) 
         {
@@ -433,7 +435,7 @@ std::array<BoundingBox, 6> CScene::BoundingBoxToPlanes(const BoundingBox &Box) c
         return OutBalls;
     }
 
-    SBall CScene::GenerateBall( const SBallGenerationParameters &BallGenerationParameters )
+    SPhysicsBody CScene::GenerateBall( const SBallGenerationParameters &BallGenerationParameters )
     {
         // Location 
         std::uniform_real_distribution<float> UX(BallGenerationParameters . MinLocation.x, BallGenerationParameters . MaxLocation.x);
@@ -449,13 +451,56 @@ std::array<BoundingBox, 6> CScene::BoundingBoxToPlanes(const BoundingBox &Box) c
         const float Radius = URadius(m_RandomGenerator);
         const float Mass = Radius * BallGenerationParameters . MassToRadius;
         const Color BallColor = PE::Math::ColorLerp ( GREEN, RED, ( Radius - BallGenerationParameters . MinRadius ) / ( BallGenerationParameters . MaxRadius - BallGenerationParameters . MinRadius ) );
-        return SBall {  .Center = { UX(m_RandomGenerator), UY(m_RandomGenerator), UZ(m_RandomGenerator) }, 
-                        .Radius = Radius ,
+        return SPhysicsBody { 
+                        .Position = { UX(m_RandomGenerator), UY(m_RandomGenerator), UZ(m_RandomGenerator) }, 
                         .Rotation = QuaternionIdentity(),
                         .LinearVelocity = { ULVX( m_RandomGenerator ), ULVY( m_RandomGenerator ), ULVZ( m_RandomGenerator ) },
                         .AngularVelocity = { 0, 0, 0 },
+                        .Shape = { .Type = EShapeType::Sphere, .Sphere = { .Radius = Radius } },
                         .Mass = Mass,
-                        .Color = BallColor
+                        .InvMass = (Mass > 0.f) ? (1.f / Mass) : 0.f,
+                        .IsStatic = false,
+                        .Restitution = m_SceneParameters . SimulationParameters . BallsRestitution,
+                        .Friction = m_SceneParameters . SimulationParameters . BallFriction,
+                        .AngularDamping = m_SceneParameters . SimulationParameters . AngularDamping,
+                        .LinearDamping = m_SceneParameters . SimulationParameters . LinearDamping,
                      };
+    }
+    
+    void CScene::RestartSimulation()
+    {
+        ClearSimulation();
+        GenerateObjects();
+    }
+
+    void CScene::GenerateObjects()
+    {
+        std::vector <SPhysicsBody> Balls = GenerateBalls ( m_SceneParameters . SimulationParameters . NumberOfBalls, m_SceneParameters . SimulationParameters . BallGenerationParameters );
+        m_WorldBox = { .min = m_SceneParameters . SimulationParameters . WorldBoxMin, .max = m_SceneParameters .SimulationParameters . WorldBoxMax };
+        std::array<SPhysicsBody, 6> WorldPlanes = BoundingBoxToPlanes ( m_WorldBox );
+        m_NumberOfBalls = static_cast<int> ( Balls . size() );
+        for ( auto && Ball : Balls ) 
+        {
+            const int Index = static_cast<int> ( m_PhysicsBodies.size() );
+            Ball . Id = Index; 
+            m_PhysicsBodies . push_back ( std::move ( Ball ) );
+            SSimulationObject Object { 
+                .PhysicsBodyIndex = Index,
+                .Color = PE::Math::ColorLerp ( GREEN, RED, ( Ball.Shape.Sphere.Radius - m_SceneParameters . SimulationParameters . BallGenerationParameters . MinRadius ) / ( m_SceneParameters . SimulationParameters . BallGenerationParameters . MaxRadius - m_SceneParameters . SimulationParameters . BallGenerationParameters . MinRadius ) ),
+            };
+            m_Objects . push_back ( std::move ( Object ) );
+        }
+    
+        for ( auto && Plane : WorldPlanes ) 
+        {
+            const int Index = static_cast<int> ( m_PhysicsBodies.size() );
+            Plane . Id = Index; 
+            m_PhysicsBodies . push_back ( std::move ( Plane ) );
+            SSimulationObject Object { 
+                .PhysicsBodyIndex = Index,
+                .Color = GRAY,
+            };
+            m_Objects . push_back ( std::move ( Object ) );
+        }
     }
 } // namespace PE
