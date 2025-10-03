@@ -131,19 +131,19 @@ namespace PE
         m_FixedDeltaTime = 1.f / static_cast<float> ( SimulationParameters . SimulationFrequency );
     }
 
-    void CScene::DrawBall( const Vector3 & Location, float Radius, const Quaternion & Rotation, const Color & Color )
-    {   
-        DrawSphere ( Location, Radius, Color );
-        Vector3 localX = { Radius, 0.f, 0.f };
-        Vector3 localY = { 0.f, Radius, 0.f };
-        Vector3 localZ = { 0.f, 0.f, Radius };
+    void CScene::DrawBall( const Vector3 & Location, float Radius, const Quaternion & Rotation, const Color & InColor )
+    {  
+        DrawSphere( Location, Radius, InColor );
+
+        Vector3 localX { Radius , 0.f, 0.f };
+        Vector3 localY { 0.f, Radius, 0.f };
+        Vector3 localZ { 0.f, 0.f, Radius };
 
         Vector3 worldX = Vector3Add(Location, Vector3RotateByQuaternion(localX, Rotation));
         Vector3 worldY = Vector3Add(Location, Vector3RotateByQuaternion(localY, Rotation));
         Vector3 worldZ = Vector3Add(Location, Vector3RotateByQuaternion(localZ, Rotation));
 
-        /*
-        DrawLine3D(Location, worldX, Color);
+        DrawLine3D(Location, worldX, RED);
         DrawLine3D(Location, worldY, GREEN);
         DrawLine3D(Location, worldZ, BLUE);
 
@@ -152,8 +152,7 @@ namespace PE
         DrawCube(worldY, markerSize, markerSize, markerSize, GREEN);
         DrawCube(worldZ, markerSize, markerSize, markerSize, BLUE);
 
-        
-        const int segments = 36;
+        const int segments = 36; 
         const float twoPi = 6.28318530718f;
         Vector3 prev = { Radius, 0.f, 0.f };
         prev = Vector3Add(Location, Vector3RotateByQuaternion(prev, Rotation));
@@ -166,7 +165,6 @@ namespace PE
             DrawLine3D(prev, worldP, DARKGRAY);
             prev = worldP;
         }
-        */
     }
 
     /* 
@@ -444,6 +442,10 @@ namespace PE
         std::uniform_real_distribution<float> ULVX(BallGenerationParameters . MinLinearVelocity.x, BallGenerationParameters . MaxLinearVelocity.x);
         std::uniform_real_distribution<float> ULVY(BallGenerationParameters . MinLinearVelocity.y, BallGenerationParameters . MaxLinearVelocity.y);
         std::uniform_real_distribution<float> ULVZ(BallGenerationParameters . MinLinearVelocity.z, BallGenerationParameters . MaxLinearVelocity.z);
+        // Angular velocity
+        std::uniform_real_distribution<float> UAVX(BallGenerationParameters . MinAngularVelocity.x, BallGenerationParameters . MaxAngularVelocity.x);
+        std::uniform_real_distribution<float> UAVY(BallGenerationParameters . MinAngularVelocity.y, BallGenerationParameters . MaxAngularVelocity.y);
+        std::uniform_real_distribution<float> UAVZ(BallGenerationParameters . MinAngularVelocity.z, BallGenerationParameters . MaxAngularVelocity.z);
 
         // Radius 
         std::uniform_real_distribution<float> URadius(BallGenerationParameters . MinRadius, BallGenerationParameters . MaxRadius );
@@ -454,7 +456,7 @@ namespace PE
                         .Position = { UX(m_RandomGenerator), UY(m_RandomGenerator), UZ(m_RandomGenerator) }, 
                         .Rotation = QuaternionIdentity(),
                         .LinearVelocity = { ULVX( m_RandomGenerator ), ULVY( m_RandomGenerator ), ULVZ( m_RandomGenerator ) },
-                        .AngularVelocity = { 0, 0, 0 },
+                        .AngularVelocity = { UAVX( m_RandomGenerator ), UAVY( m_RandomGenerator ), UAVZ( m_RandomGenerator ) },
                         .Shape = { .Type = EShapeType::Sphere, .Sphere = { .Radius = Radius } },
                         .Mass = Mass,
                         .InvMass = (Mass > 0.f) ? (1.f / Mass) : 0.f,
