@@ -96,7 +96,7 @@ namespace Collision
     {
    
         SHitResult OutHitResult; 
-        const Vector3 Direction = Vector3Subtract( SphereCenterB, SphereCenterA );
+        const Vector3 Direction = Vector3Subtract( SphereCenterA, SphereCenterB );
         const float   DistanceSquared = Vector3DistanceSqr ( SphereCenterB, SphereCenterA );
         const float   RadiiSum = SphereRadiusA + SphereRadiusB;
         const float   RadiiSumSquared = RadiiSum * RadiiSum;

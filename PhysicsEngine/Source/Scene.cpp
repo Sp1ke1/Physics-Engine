@@ -257,13 +257,13 @@ namespace PE
             {
                 for ( size_t k = j + 1; k < m_PhysicsBodies.size(); k++ ) 
                 {
-                    ResolveCollisionsPair ( m_PhysicsBodies [ j ], m_PhysicsBodies [ k ], DeltaTime ); 
+                    ResolveCollisionPair ( m_PhysicsBodies [ j ], m_PhysicsBodies [ k ], DeltaTime ); 
                 }
             }
         }
     }
 
-    void CScene::ResolveCollisionsPair(SPhysicsBody &BodyA, SPhysicsBody &BodyB, float DeltaTime)
+    void CScene::ResolveCollisionPair(SPhysicsBody &BodyA, SPhysicsBody &BodyB, float DeltaTime)
     {
         if ( BodyA.IsStatic && BodyB.IsStatic ) 
         {
@@ -273,7 +273,6 @@ namespace PE
         const PE::Collision::SHitResult Hit = PE::Collision::TestCollision ( BodyA, BodyB );
         if (Hit.IsHit)
         {
-            std::cout << "Hit detected!" << "Id a: " << BodyA.Id << " Id b: " << BodyB.Id << " Time: " << GetTime() - m_SimulationStartTime << std::endl;
             // Positional correction
             const float Penetration = Hit.Penetration - m_SceneParameters.SimulationParameters.Slop;
             const float SumInvMass = BodyA.InvMass + BodyB.InvMass;
