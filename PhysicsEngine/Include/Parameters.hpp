@@ -40,7 +40,6 @@ struct SWindowParameters
         int SimulationFrequency = 120; 
         int NumberOfSteps = 8;
         int NumberOfBalls = 20;
-        bool PrintBallsDebugInfo = false;
         int RandomSeed = 42;
         float Slop = 0.0005f;
         float Gravity = 9.81f;

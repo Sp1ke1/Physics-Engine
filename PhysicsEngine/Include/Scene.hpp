@@ -35,7 +35,6 @@ namespace PE
         void DrawObject ( const SSimulationObject & Ball );
         void DrawBox ( const BoundingBox & Box, const Color & Color );
         void DrawBall ( const Vector3 & Location, float Radius, const Quaternion & Rotation, const Color & InColor );
-        // void DrawBallsDebugInfo();
         void SimulationStep ( float DeltaTime );
         void IntegrateForces ( float DeltaTime );
         void ResolveCollisions( float DeltaTime);

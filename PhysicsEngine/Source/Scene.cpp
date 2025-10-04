@@ -41,11 +41,13 @@ namespace PE
     }
     void CScene::SetWindowParameters(const SWindowParameters &WindowParameters)
     {
+        m_SceneParameters . WindowParameters = WindowParameters;
         SetWindowSize ( WindowParameters.ScreenWidth, WindowParameters . ScreenHeight );
         SetTargetFPS ( WindowParameters . TargetFPS );
     }
     void CScene::SetCameraParameters(const SCameraParameters &CameraParameters)
     {
+        m_SceneParameters . CameraParameters = CameraParameters;
         m_Camera . position = CameraParameters . Position;
         m_Camera . target = CameraParameters . Target;
         m_Camera . up = CameraParameters . Up;
@@ -74,7 +76,6 @@ namespace PE
     }
     void CScene::Initialize(const SSceneParameters & SceneParameters)
     {
-        m_SceneParameters = SceneParameters;
         InitWindow ( m_SceneParameters . WindowParameters . ScreenWidth, m_SceneParameters . WindowParameters . ScreenHeight, SceneParameters . WindowParameters . Title . c_str());
         SetTargetFPS ( m_SceneParameters . WindowParameters . TargetFPS );
         SetCameraParameters ( m_SceneParameters . CameraParameters );
@@ -86,6 +87,7 @@ namespace PE
 
     void CScene::DrawUI()
     {
+        const int WindowWidth = m_SceneParameters . WindowParameters . ScreenWidth;
         const double ElapsedTime = GetTime() - m_SimulationStartTime; 
         char Buffer [64];
         snprintf(Buffer, sizeof(Buffer), "Time: %.2f s", ElapsedTime );
@@ -94,10 +96,14 @@ namespace PE
         DrawText(Buffer, 0, 20, 20, BLACK);
         snprintf(Buffer, sizeof ( Buffer ), "Frame time: %.3f ms", GetFrameTime() * 1000.f );
         DrawText(Buffer, 0, 40, 20, BLACK);
-        if ( m_SceneParameters.SimulationParameters.PrintBallsDebugInfo )
-        {
-            // DrawBallsDebugInfo();
-        }
+        snprintf(Buffer, sizeof(Buffer), "R - restart" );
+        DrawText(Buffer, WindowWidth - 120, 0, 20, BLACK);
+        snprintf(Buffer, sizeof(Buffer), "ENTER - pause (%s)", m_IsPaused ? "paused" : "running" );
+        DrawText(Buffer, WindowWidth - 260, 20, 20, BLACK);
+        snprintf(Buffer, sizeof(Buffer), "Mouse or arrows - look" );
+        DrawText(Buffer, WindowWidth - 245, 40, 20, BLACK);
+        snprintf(Buffer, sizeof(Buffer), "WASD - move" );
+        DrawText(Buffer, WindowWidth - 135, 60, 20, BLACK);
     }
 
     void CScene::DrawObject(const SSimulationObject & Object )
@@ -126,6 +132,7 @@ namespace PE
 
     void CScene::SetSimulationParameters ( const SSimulationParameters &SimulationParameters)
     {
+        m_SceneParameters . SimulationParameters = SimulationParameters;
         m_RandomGenerator = std::mt19937 ( SimulationParameters . RandomSeed );
         m_WorldBox = { .min = SimulationParameters . WorldBoxMin, .max = SimulationParameters . WorldBoxMax };
         m_FixedDeltaTime = 1.f / static_cast<float> ( SimulationParameters . SimulationFrequency );
@@ -167,40 +174,6 @@ namespace PE
         }
     }
 
-    /* 
-    void CScene::DrawBallsDebugInfo()
-    {
-        char Buffer [64];
-        const int BallsPrintLocationBaseOffset = 60; 
-        const int BallsPrintLocationLineOffset = 20;
-        for ( auto i = 0; i < m_Balls . size(); ++ i )
-        {
-            snprintf ( Buffer, sizeof ( Buffer ), "[%d] Pos: (%.2f, %.2f, %.2f)", 
-            i, 
-            m_Balls[i] . Center . x, 
-            m_Balls[i] . Center . y, 
-            m_Balls[i] . Center . z 
-            );
-            DrawText( Buffer, 0, BallsPrintLocationBaseOffset + BallsPrintLocationLineOffset * i, 20, BLACK);
-
-            snprintf ( Buffer, sizeof ( Buffer ), "[%d] Lin Vel: (%.2f, %.2f, %.2f)", 
-            i, 
-            m_Balls[i] . LinearVelocity . x, 
-            m_Balls[i] . LinearVelocity . y, 
-            m_Balls[i] . LinearVelocity . z 
-            );
-            DrawText( Buffer, 0, BallsPrintLocationBaseOffset + BallsPrintLocationLineOffset * i + BallsPrintLocationLineOffset , 20, BLACK);
-
-            snprintf ( Buffer, sizeof ( Buffer ), "[%d] Ang Vel: (%.2f, %.2f, %.2f)", 
-            i, 
-            m_Balls[i] . AngularVelocity . x, 
-            m_Balls[i] . AngularVelocity . y, 
-            m_Balls[i] . AngularVelocity . z 
-            );
-            DrawText( Buffer, 0, BallsPrintLocationBaseOffset + BallsPrintLocationLineOffset * i + BallsPrintLocationLineOffset * 2, 20, BLACK);
-        } 
-    }
-*/
     void CScene::SimulationStep (float DeltaTime)
     {
         IntegrateForces( DeltaTime );
