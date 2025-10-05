@@ -14,13 +14,29 @@ namespace PE
     {
         
         public:
-        CScene( const SSceneParameters & SceneParameters ); 
+       
+        // Construct scene with given parameters (window, camera, simulation).
+        explicit CScene( const SSceneParameters & SceneParameters ); 
+
+        /** Set window parameters (size, title, target FPS). */
         void SetWindowParameters ( const SWindowParameters& WindowParameters );
+
+        /** Set camera parameters used for rendering. */
         void SetCameraParameters ( const SCameraParameters& CameraParameters );
+
+        /** Set simulation parameters (gravity, damping, world bounds, etc.). */
         void SetSimulationParameters ( const SSimulationParameters & SimulationParameters  );
+
+        /** Advance the scene by DeltaTime (drives fixed-step internal updates). */
         void Update(float DeltaTime );
+
+        /** Render the current scene frame. */
         void Draw();
+
+        /** Remove all objects and reset simulation state. */
         void ClearSimulation();
+
+        /** Restart simulation by clearing and regenerating objects. */
         void RestartSimulation(); 
         
         

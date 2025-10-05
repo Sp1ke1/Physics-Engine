@@ -5,7 +5,12 @@
 
 namespace PE
 {
-   struct SPhysicsBody
+    /**
+     * @brief Represents a rigid body used by the simple physics engine.
+     *
+     * Contains shape, pose, kinematic state and material properties.
+     */
+    struct SPhysicsBody
     {
         SShape Shape; 
         

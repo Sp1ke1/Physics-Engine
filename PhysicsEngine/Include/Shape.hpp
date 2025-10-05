@@ -1,12 +1,20 @@
 #pragma once
 #include "raylib.h"
 
+/**
+ * @brief Supported primitive shape types.
+ */
 enum class EShapeType : short
 {
     Box,
     Sphere,
 };
 
+/**
+ * @brief Simple shape union for primitives used by physics bodies.
+ *
+ * Contains only the essential geometric parameters for box and sphere.
+ */
 struct SShape
 {
     EShapeType Type;
@@ -23,6 +31,11 @@ struct SShape
         } Sphere;
     };
 
+    /**
+     * @brief Return scalar moment of inertia for the shape given mass.
+     *
+     * This is a simplified scalar result (not a full inertia tensor).
+     */
     float GetMomentOfInertia(float Mass) const
     {
         switch (Type)

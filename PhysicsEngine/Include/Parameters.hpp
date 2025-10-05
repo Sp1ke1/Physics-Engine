@@ -5,14 +5,20 @@
 
 namespace PE 
 {
+/**
+ * @brief Window configuration parameters.
+ */
 struct SWindowParameters
     {   
-        int ScreenWidth = 800; 
-        int ScreenHeight = 600;
+        int ScreenWidth = 1920; 
+        int ScreenHeight = 1080;
         int TargetFPS = 120;
         std::string Title = "Physics Engine";
     };
     
+/**
+ * @brief Camera parameters used for the 3D view.
+ */
     struct SCameraParameters
     {
         Vector3 Position = { 0.0f, -5.f, 25.0f };
@@ -22,6 +28,9 @@ struct SWindowParameters
         int Projection = CAMERA_PERSPECTIVE;
     };
     
+/**
+ * @brief Parameters used to randomize generated balls.
+ */
     struct SBallGenerationParameters 
     {
         Vector3 MinLocation = { -5.0f, 5.0f, -5.0f };
@@ -35,6 +44,9 @@ struct SWindowParameters
         float MassToRadius = 10.f; // Mass = Radius * MassToRadius 
     };
     
+/**
+ * @brief Parameters that configure the simulation behaviour.
+ */
     struct SSimulationParameters 
     {
         int SimulationFrequency = 120; 
@@ -53,6 +65,9 @@ struct SWindowParameters
     };
     
     
+/**
+ * @brief Top-level scene parameters grouping window, camera and sim settings.
+ */
     struct SSceneParameters 
     {
         SWindowParameters WindowParameters; 
