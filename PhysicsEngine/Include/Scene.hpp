@@ -37,8 +37,8 @@ namespace PE
         void DrawBall ( const Vector3 & Location, float Radius, const Quaternion & Rotation, const Color & InColor );
         void SimulationStep ( float DeltaTime );
         void IntegrateForces ( float DeltaTime );
-        void ResolveCollisions( float DeltaTime);
-        void ResolveCollisionPair ( SPhysicsBody & BodyA, SPhysicsBody & BodyB, float DeltaTime ); 
+        void ResolveCollisions( float DeltaTime );
+        void ResolveCollisionPair ( SPhysicsBody & BodyA, SPhysicsBody & BodyB, float DeltaTime );
         
         Camera3D m_Camera;
         std::vector<SSimulationObject> m_Objects;

@@ -236,132 +236,80 @@ namespace PE
 
     void CScene::ResolveCollisionPair(SPhysicsBody &BodyA, SPhysicsBody &BodyB, float DeltaTime)
     {
-        if (BodyA.IsStatic && BodyB.IsStatic)
+        if ( BodyA.IsStatic && BodyB.IsStatic )
         {
             return;
         }
-
         const PE::Collision::SHitResult Hit = PE::Collision::TestCollision(BodyA, BodyB);
-        if (Hit.IsHit)
+        if ( Hit . IsHit ) 
         {
             // Positional correction
-            const float Penetration = Hit.Penetration - m_SceneParameters.SimulationParameters.Slop;
-            const float SumInvMass  = BodyA.InvMass + BodyB.InvMass;
-            if (Penetration > 0.f && SumInvMass > 0.f)
+            const float Penetration = Hit . Penetration - m_SceneParameters . SimulationParameters . Slop;
+            const float SumInvMass  = BodyA . InvMass + BodyB . InvMass;
+            if ( Penetration > 0.f && SumInvMass > 0.f ) 
             {
-                const Vector3 Correction = Vector3Scale(Hit.Normal, Penetration / SumInvMass);
-                if (!BodyA.IsStatic)
+                const Vector3 Correction = Vector3Scale ( Hit . Normal, Penetration / SumInvMass );
+                if ( ! BodyA . IsStatic ) 
                 {
-                    BodyA.Position = Vector3Add(BodyA.Position, Vector3Scale(Correction, BodyA.InvMass));
+                    BodyA . Position = Vector3Add ( BodyA . Position, Vector3Scale ( Correction, BodyA . InvMass ) );
                 }
-                if (!BodyB.IsStatic)
+                if ( ! BodyB . IsStatic ) 
                 {
-                    BodyB.Position = Vector3Subtract(BodyB.Position, Vector3Scale(Correction, BodyB.InvMass));
+                    BodyB . Position = Vector3Subtract ( BodyB . Position, Vector3Scale ( Correction, BodyB . InvMass ) );
                 }
             }
 
-
-            const Vector3 RelativeVelocity = Vector3Subtract(BodyA.LinearVelocity, BodyB.LinearVelocity);
-            const float   RelativeNormalVelocity = Vector3DotProduct(RelativeVelocity, Hit.Normal);
-
-            if (RelativeNormalVelocity < 0.f)
+            const Vector3 N = Hit . Normal;
+            const Vector3 RA = Vector3Subtract ( Hit . ContactPoint, BodyA . Position );
+            const Vector3 RB = Vector3Subtract ( Hit . ContactPoint, BodyB . Position );
+            const Vector3 VA_contact = Vector3Add ( BodyA . LinearVelocity, Vector3CrossProduct ( BodyA . AngularVelocity, RA ) );
+            const Vector3 VB_contact = Vector3Add ( BodyB . LinearVelocity, Vector3CrossProduct ( BodyB . AngularVelocity, RB ) );
+            const Vector3 VRel = Vector3Subtract ( VA_contact, VB_contact );
+            const float VN = Vector3DotProduct ( VRel, Hit . Normal );
+            // Bodies are separating, no impulse needed
+            if ( VN > 0.f ) 
             {
-                // ---------- Normal impulse (linear) ----------
-                const float CoefficientOfRestitution = std::fmin(BodyA.Restitution, BodyB.Restitution);
-                const float NormalImpulseMagnitude   = (1.f + CoefficientOfRestitution) * (-RelativeNormalVelocity) / (SumInvMass > 0.f ? SumInvMass : 1.f);
-                const Vector3 NormalImpulse          = Vector3Scale(Hit.Normal, NormalImpulseMagnitude);
+                return; 
+            }
+            
+            // Normal impulse
+            const float E = std::fmin ( BodyA . Restitution, BodyB . Restitution );
+            const float JN = - ( 1.f + E ) * VN / ( SumInvMass > 0.f ? SumInvMass : 1.f );
+           
+            // Tangential impulse (friction)
+            const Vector3 VT = Vector3Subtract ( VRel, Vector3Scale ( N, VN ) );
+            const float VT_Length = Vector3Length ( VT );
+            const Vector3 T = VT_Length > 1e-6f ? Vector3Scale ( VT, 1.f / VT_Length ) : Vector3 { 0.f, 0.f, 0.f };
 
-                if (!BodyA.IsStatic)
-                {
-                    BodyA.LinearVelocity = Vector3Add(BodyA.LinearVelocity, Vector3Scale(NormalImpulse, BodyA.InvMass));
-                }
-                if (!BodyB.IsStatic)
-                {
-                    BodyB.LinearVelocity = Vector3Subtract(BodyB.LinearVelocity, Vector3Scale(NormalImpulse, BodyB.InvMass));
-                }
+            // Coulomb friction model
+            const float Mu = std::fmax ( 0.f, std::fmin ( BodyA . Friction, BodyB . Friction ) );
+            const float MaxJT = Mu * std::fabs ( JN );
+            float JT = - VT_Length / ( SumInvMass > 0.f ? SumInvMass : 1.f );
+            JT = Clamp ( JT, -MaxJT, MaxJT );
+            const Vector3 J = Vector3Add ( Vector3Scale ( N, JN ), Vector3Scale ( T, JT ) );
 
-                // ---------- Angular impulse from normal ----------
-                const float MomentOfInertiaA = BodyA.Shape.GetMomentOfInertia(BodyA.IsStatic ? 0.f : BodyA.Mass);
-                const float MomentOfInertiaB = BodyB.Shape.GetMomentOfInertia(BodyB.IsStatic ? 0.f : BodyB.Mass);
-                const float InverseMomentOfIntertiaA = (MomentOfInertiaA > 0.f && !BodyA.IsStatic) ? (1.f / MomentOfInertiaA) : 0.f;
-                const float InverseMomentOfIntertiaB = (MomentOfInertiaB > 0.f && !BodyB.IsStatic) ? (1.f / MomentOfInertiaB) : 0.f;
 
-                const Vector3 RelativeContactPositionBodyA = Vector3Subtract(Hit.ContactPoint, BodyA.Position);
-                const Vector3 RelativeContactPositionBodyB = Vector3Subtract(Hit.ContactPoint, BodyB.Position);
+            // Apply impulses 
+            if ( ! BodyA. IsStatic ) 
+            {
+                const Vector3 TauA = Vector3CrossProduct ( RA, J );
+                BodyA . LinearVelocity = Vector3Add ( BodyA . LinearVelocity, Vector3Scale ( J, BodyA . InvMass ) );
+                const float IA = BodyA . Shape . GetMomentOfInertia ( BodyA . Mass );
+                const float InvIA = 1.f / IA;
+                BodyA . AngularVelocity = Vector3Add ( BodyA . AngularVelocity, Vector3Scale ( TauA, InvIA ) );
+            }
 
-                if (!BodyA.IsStatic)
-                {
-                    const Vector3 DeltaAngularVelocityA =
-                        Vector3Scale(Vector3CrossProduct(RelativeContactPositionBodyA, NormalImpulse), InverseMomentOfIntertiaA);
-                    BodyA.AngularVelocity = Vector3Add(BodyA.AngularVelocity, DeltaAngularVelocityA);
-                }
-                if (!BodyB.IsStatic)
-                {
-                    const Vector3 DeltaAngularVelocityB =
-                        Vector3Scale(Vector3CrossProduct(RelativeContactPositionBodyB, Vector3Negate(NormalImpulse)), InverseMomentOfIntertiaB);
-                    BodyB.AngularVelocity = Vector3Add(BodyB.AngularVelocity, DeltaAngularVelocityB);
-                }
-
-                // ---------- Tangential (friction) impulse: simple model ----------
-                // Contact velocities including angular part: v = v_lin + ω × r
-                const Vector3 ContactVelocityBodyA =
-                    Vector3Add(BodyA.LinearVelocity, Vector3CrossProduct(BodyA.AngularVelocity, RelativeContactPositionBodyA));
-                const Vector3 ContactVelocityBodyB =
-                    Vector3Add(BodyB.LinearVelocity, Vector3CrossProduct(BodyB.AngularVelocity, RelativeContactPositionBodyB));
-                const Vector3 RelativeContactVelocity = Vector3Subtract(ContactVelocityBodyA, ContactVelocityBodyB);
-
-                const Vector3 RelativeContactNormalComponent =
-                    Vector3Scale(Hit.Normal, Vector3DotProduct(RelativeContactVelocity, Hit.Normal));
-                const Vector3 RelativeContactTangentVelocity =
-                    Vector3Subtract(RelativeContactVelocity, RelativeContactNormalComponent);
-
-                const float RelativeContactTangentSpeed = Vector3Length(RelativeContactTangentVelocity);
-                if (RelativeContactTangentSpeed > 0.f )
-                {
-                    const Vector3 TangentDirection = Vector3Normalize (RelativeContactTangentVelocity );
-
-                    // Simple denominator: only inverse masses (no angular terms)
-                    float TangentImpulseMagnitude = 0.f;
-                    if (SumInvMass > 0.f)
-                    {
-                        TangentImpulseMagnitude =
-                            -Vector3DotProduct(RelativeContactVelocity, TangentDirection) / SumInvMass;
-                    }
-
-                    // Coulomb clamp: |Jt| <= μ * |Jn|
-                    const float FrictionCoefficient = std::fmax(0.f, std::fmin(BodyA.Friction, BodyB.Friction));
-                    const float MaxFrictionImpulse  = FrictionCoefficient * std::fabs(NormalImpulseMagnitude);
-                    TangentImpulseMagnitude = Clamp (TangentImpulseMagnitude, -MaxFrictionImpulse, MaxFrictionImpulse);
-
-                    const Vector3 TangentialImpulse = Vector3Scale(TangentDirection, TangentImpulseMagnitude);
-
-                    // Apply to linear velocities
-                    if (!BodyA.IsStatic)
-                    {
-                        BodyA.LinearVelocity = Vector3Add(BodyA.LinearVelocity, Vector3Scale(TangentialImpulse, BodyA.InvMass));
-                    }
-                    if (!BodyB.IsStatic)
-                    {
-                        BodyB.LinearVelocity = Vector3Subtract(BodyB.LinearVelocity, Vector3Scale(TangentialImpulse, BodyB.InvMass));
-                    }
-
-                    // Apply to angular velocities (Δω = I^{-1} (r × Jt))
-                    if (!BodyA.IsStatic && InverseMomentOfIntertiaA > 0.f)
-                    {
-                        const Vector3 DeltaAngularVelocityFrictionA =
-                            Vector3Scale(Vector3CrossProduct(RelativeContactPositionBodyA, TangentialImpulse), InverseMomentOfIntertiaA);
-                        BodyA.AngularVelocity = Vector3Add(BodyA.AngularVelocity, DeltaAngularVelocityFrictionA);
-                    }
-                    if (!BodyB.IsStatic && InverseMomentOfIntertiaB > 0.f)
-                    {
-                        const Vector3 DeltaAngularVelocityFrictionB =
-                            Vector3Scale(Vector3CrossProduct(RelativeContactPositionBodyB, TangentialImpulse), InverseMomentOfIntertiaB);
-                        BodyB.AngularVelocity = Vector3Subtract(BodyB.AngularVelocity, DeltaAngularVelocityFrictionB); // знак минус, т.к. импульс у B противоположный
-                    }
-                }
+            if ( ! BodyB . IsStatic ) 
+            {
+                const Vector3 TauB = Vector3CrossProduct ( RB, J );
+                BodyB . LinearVelocity = Vector3Subtract ( BodyB . LinearVelocity, Vector3Scale ( J, BodyB . InvMass ) );
+                const float IB = BodyB . Shape . GetMomentOfInertia ( BodyB . Mass );
+                const float InvIB = 1.f / IB;
+                BodyB . AngularVelocity = Vector3Subtract ( BodyB . AngularVelocity, Vector3Scale ( TauB, InvIB ) );
             }
         }
     }
+
     std::array<SPhysicsBody, 6> CScene::BoundingBoxToPlanes(const BoundingBox &Box) const
     {
         // Create 6 thin static box bodies representing the world planes (left, right, bottom, top, front, back)
