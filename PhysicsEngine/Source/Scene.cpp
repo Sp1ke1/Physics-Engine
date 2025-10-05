@@ -176,7 +176,7 @@ namespace PE
 
     void CScene::SimulationStep (float DeltaTime)
     {
-        IntegrateForces( DeltaTime );
+        IntegrateForces ( DeltaTime );
         ResolveCollisions ( DeltaTime );
     }
     void CScene::IntegrateForces( float DeltaTime )
@@ -188,8 +188,9 @@ namespace PE
                 continue; 
             }
             // Apply gravity force
-            PhysicsBody.LinearVelocity = Vector3Add(PhysicsBody.LinearVelocity,
-                Vector3Scale({0.f, -m_SceneParameters.SimulationParameters.Gravity, 0.f}, DeltaTime));
+            const Vector3 GravityForce = { 0.f, -m_SceneParameters . SimulationParameters . Gravity, 0.f };
+            const Vector3 DeltaGravityForce = Vector3Scale( GravityForce, DeltaTime );
+            PhysicsBody.LinearVelocity = Vector3Add( PhysicsBody.LinearVelocity, DeltaGravityForce );
 
             // Apply linear damping (exponential decay) so velocity reduces over time
             if (PhysicsBody.LinearDamping  > 0.f)
@@ -286,14 +287,17 @@ namespace PE
             const float MaxJT = Mu * std::fabs ( JN );
             float JT = - VT_Length / ( SumInvMass > 0.f ? SumInvMass : 1.f );
             JT = Clamp ( JT, -MaxJT, MaxJT );
+
+            // Total impulse
             const Vector3 J = Vector3Add ( Vector3Scale ( N, JN ), Vector3Scale ( T, JT ) );
 
 
             // Apply impulses 
             if ( ! BodyA. IsStatic ) 
             {
-                const Vector3 TauA = Vector3CrossProduct ( RA, J );
                 BodyA . LinearVelocity = Vector3Add ( BodyA . LinearVelocity, Vector3Scale ( J, BodyA . InvMass ) );
+                
+                const Vector3 TauA = Vector3CrossProduct ( RA, J );
                 const float IA = BodyA . Shape . GetMomentOfInertia ( BodyA . Mass );
                 const float InvIA = 1.f / IA;
                 BodyA . AngularVelocity = Vector3Add ( BodyA . AngularVelocity, Vector3Scale ( TauA, InvIA ) );
@@ -301,8 +305,9 @@ namespace PE
 
             if ( ! BodyB . IsStatic ) 
             {
-                const Vector3 TauB = Vector3CrossProduct ( RB, J );
                 BodyB . LinearVelocity = Vector3Subtract ( BodyB . LinearVelocity, Vector3Scale ( J, BodyB . InvMass ) );
+                
+                const Vector3 TauB = Vector3CrossProduct ( RB, J );
                 const float IB = BodyB . Shape . GetMomentOfInertia ( BodyB . Mass );
                 const float InvIB = 1.f / IB;
                 BodyB . AngularVelocity = Vector3Subtract ( BodyB . AngularVelocity, Vector3Scale ( TauB, InvIB ) );

@@ -125,7 +125,7 @@ namespace Collision
         
         // Contact point = midpoint between surface points along the normal
         const Vector3 ContactPointOffsetAlongNormal = Vector3Scale(OutHitResult.Normal, SphereRadiusA - 0.5f * OutHitResult.Penetration);
-        OutHitResult.ContactPoint = Vector3Add(SphereCenterA, ContactPointOffsetAlongNormal);
+        OutHitResult.ContactPoint = Vector3Add(SphereCenterB, ContactPointOffsetAlongNormal);
         return OutHitResult; 
     }
 

@@ -39,8 +39,8 @@ struct SWindowParameters
     {
         int SimulationFrequency = 120; 
         int NumberOfSteps = 8;
-        int NumberOfBalls = 20;
-        int RandomSeed = 42;
+        int NumberOfBalls = 30;
+        int RandomSeed = 1337;
         float Slop = 0.0005f;
         float Gravity = 9.81f;
         float BallsRestitution = 0.3f;

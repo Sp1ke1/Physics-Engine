@@ -95,3 +95,96 @@ TEST ( Collision, SphereBoxPenetration )
     EXPECT_FLOAT_EQ ( HitResult2 . Penetration, 0.5f  );
     EXPECT_TRUE ( HitResult2 . IsHit );
 }
+
+TEST ( Collision, SphereSpherePenetration )
+{
+    const Vector3 CenterA { 0.f, 0.f, 0.f };
+    const float RadiusA = 1.f; 
+
+    const Vector3 CenterB1 { 1.5f, 0.f, 0.f }; // overlapping by 0.5
+    const Vector3 CenterB2 { 1.f, 0.f, 0.f }; // overlapping by 1.0
+    const Vector3 CenterB3 { 0.5f, 0.f, 0.f }; // overlapping by 1.5
+
+    const float RadiusB = 1.f; 
+    const PE::Collision::SHitResult HitResult1 = PE::Collision::TestSphereSphere ( CenterA, RadiusA, CenterB1, RadiusB );
+    const PE::Collision::SHitResult HitResult2 = PE::Collision::TestSphereSphere ( CenterA, RadiusA, CenterB2, RadiusB );
+    const PE::Collision::SHitResult HitResult3 = PE::Collision::TestSphereSphere ( CenterA, RadiusA, CenterB3, RadiusB );
+    EXPECT_TRUE ( HitResult1 . IsHit );
+    EXPECT_FLOAT_EQ ( HitResult1 . Penetration, 0.5f );
+    EXPECT_TRUE ( HitResult2 . IsHit ); 
+    EXPECT_FLOAT_EQ ( HitResult2 . Penetration, 1.0f );
+    EXPECT_TRUE ( HitResult3 . IsHit );
+    EXPECT_FLOAT_EQ ( HitResult3 . Penetration, 1.5f );
+}
+
+TEST ( Collision, SphereBoxContactPointAndNormal ) 
+{
+    const Vector3 SphereCenter { 0.f, 0.f, 0.f };
+    const float SphereRadius = 1.f; 
+
+    const BoundingBox BBox1 = { . min = { -2.f, -2.f, -2.f }, . max = { 2.f, -1.f, 2.f } }; // box below sphere
+    const BoundingBox BBox2 = { . min = { -2.f, 1.f, -2.f }, . max = { 2.f, 2.f, 2.f } }; // box above sphere
+
+    const PE::Collision::SHitResult HitResult1 = PE::Collision::TestSphereBox ( SphereCenter, SphereRadius, BBox1 );
+    const PE::Collision::SHitResult HitResult2 = PE::Collision::TestSphereBox ( SphereCenter, SphereRadius, BBox2 );
+    EXPECT_TRUE ( HitResult1 . IsHit );
+    EXPECT_FLOAT_EQ ( HitResult1 . Penetration, 0.0f );
+    EXPECT_FLOAT_EQ ( HitResult1 . Normal . x, 0.f );
+    EXPECT_FLOAT_EQ ( HitResult1 . Normal . y, 1.f );
+    EXPECT_FLOAT_EQ ( HitResult1 . Normal . z, 0.f );
+    EXPECT_FLOAT_EQ ( HitResult1 . ContactPoint . x, 0.f );
+    EXPECT_FLOAT_EQ ( HitResult1 . ContactPoint . y, -1.f );
+    EXPECT_FLOAT_EQ ( HitResult1 . ContactPoint . z, 0.f );
+
+    EXPECT_TRUE ( HitResult2 . IsHit );
+    EXPECT_FLOAT_EQ ( HitResult2 . Penetration, 0.0f );
+    EXPECT_FLOAT_EQ ( HitResult2 . Normal . x, 0.f );
+    EXPECT_FLOAT_EQ ( HitResult2 . Normal . y, -1.f );
+    EXPECT_FLOAT_EQ ( HitResult2 . Normal . z, 0.f );
+    EXPECT_FLOAT_EQ ( HitResult2 . ContactPoint . x, 0.f );
+    EXPECT_FLOAT_EQ ( HitResult2 . ContactPoint . y, 1.f );
+    EXPECT_FLOAT_EQ ( HitResult2 . ContactPoint . z, 0.f );
+}
+
+TEST( Collision, SphereSphereContactPointAndNormal ) 
+{
+    const Vector3 CenterA { 0.f, 0.f, 0.f };
+    const float RadiusA = 1.f; 
+
+    const Vector3 CenterB1 { 1.5f, 0.f, 0.f }; // overlapping by 0.5
+    const Vector3 CenterB2 { -1.5f, 0.f, 0.f }; // overlapping by 0.5
+    const Vector3 CenterB3 { 0.f, 1.5f, 0.f }; // overlapping by 0.5
+
+    const float RadiusB = 1.f; 
+    const PE::Collision::SHitResult HitResult1 = PE::Collision::TestSphereSphere ( CenterA, RadiusA, CenterB1, RadiusB );
+    const PE::Collision::SHitResult HitResult2 = PE::Collision::TestSphereSphere ( CenterA, RadiusA, CenterB2, RadiusB );
+    const PE::Collision::SHitResult HitResult3 = PE::Collision::TestSphereSphere ( CenterA, RadiusA, CenterB3, RadiusB );
+
+    EXPECT_TRUE ( HitResult1 . IsHit );
+    EXPECT_FLOAT_EQ ( HitResult1 . Penetration, 0.5f );
+    EXPECT_FLOAT_EQ ( HitResult1 . Normal . x, -1.f );
+    EXPECT_FLOAT_EQ ( HitResult1 . Normal . y, 0.f );
+    EXPECT_FLOAT_EQ ( HitResult1 . Normal . z, 0.f );
+    EXPECT_FLOAT_EQ ( HitResult1 . ContactPoint . x, 0.75f );
+    EXPECT_FLOAT_EQ ( HitResult1 . ContactPoint . y, 0.f );
+    EXPECT_FLOAT_EQ ( HitResult1 . ContactPoint . z, 0.f );
+    
+    EXPECT_TRUE ( HitResult2 . IsHit );
+    EXPECT_FLOAT_EQ ( HitResult2 . Penetration, 0.5f );
+    EXPECT_FLOAT_EQ ( HitResult2 . Normal . x, 1.f );
+    EXPECT_FLOAT_EQ ( HitResult2 . Normal . y, 0.f );
+    EXPECT_FLOAT_EQ ( HitResult2 . Normal . z, 0.f );
+    EXPECT_FLOAT_EQ ( HitResult2 . ContactPoint . x, -0.75f );
+    EXPECT_FLOAT_EQ ( HitResult2 . ContactPoint . y, 0.f );
+    EXPECT_FLOAT_EQ ( HitResult2 . ContactPoint . z, 0.f );
+    
+    EXPECT_TRUE ( HitResult3 . IsHit );
+    EXPECT_FLOAT_EQ ( HitResult3 . Penetration, 0.5f );
+    EXPECT_FLOAT_EQ ( HitResult3 . Normal . x, 0.f );
+    EXPECT_FLOAT_EQ ( HitResult3 . Normal . y, -1.f );
+    EXPECT_FLOAT_EQ ( HitResult3 . Normal . z, 0.f );
+    EXPECT_FLOAT_EQ ( HitResult3 . ContactPoint . x, 0.f );
+    EXPECT_FLOAT_EQ ( HitResult3 . ContactPoint . y, 0.75f );
+    EXPECT_FLOAT_EQ ( HitResult3 . ContactPoint . z, 0.f );
+
+}
