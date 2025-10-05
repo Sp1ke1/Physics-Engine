@@ -11,10 +11,10 @@ namespace Collision
 
     struct SHitResult 
     {
-        bool IsHit = false; 
+        Vector3 ContactPoint { 0.f, 0.f, 0.f }; 
         Vector3 Normal { 0.f, 0.f, 0.f }; 
         float Penetration = 0.f; 
-        Vector3 ContactPoint { 0.f, 0.f, 0.f }; 
+        bool IsHit = false; 
     };
     
     SHitResult TestCollision ( const SPhysicsBody & BodyA, const SPhysicsBody & BodyB ); 

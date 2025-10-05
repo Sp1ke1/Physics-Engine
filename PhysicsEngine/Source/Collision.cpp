@@ -1,5 +1,4 @@
 #include "Collision.hpp"
-#include "Misc.hpp"
 #include "Math.hpp"
 #include "raymath.h"
 
@@ -54,7 +53,7 @@ namespace Collision
         }
         
         // Center is out of the box
-        if ( DistanceSquared > GSmallNumber )
+        if ( DistanceSquared > PE::Math::GSmallNumber )
         {
             const Vector3 Direction = Vector3Subtract ( SphereCenter, ClosestOnBox );
             const float Distance = sqrtf ( DistanceSquared ); 
@@ -111,7 +110,7 @@ namespace Collision
         const float Distance = sqrtf(DistanceSquared);
 
         // Centers are the same 
-        if (Distance < GSmallNumber)
+        if (Distance < PE::Math::GSmallNumber)
         {
             OutHitResult.Normal = {1.f, 0.f, 0.f}; // Random normal
             OutHitResult.Penetration = RadiiSum; // Maximum penetration

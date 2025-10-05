@@ -277,12 +277,10 @@ namespace PE
             const float E = std::fmin ( BodyA . Restitution, BodyB . Restitution );
             const float JN = - ( 1.f + E ) * VN / ( SumInvMass > 0.f ? SumInvMass : 1.f );
            
-            // Tangential impulse (friction)
+            // Tangential impulse (friction) with Coulomb clamp
             const Vector3 VT = Vector3Subtract ( VRel, Vector3Scale ( N, VN ) );
             const float VT_Length = Vector3Length ( VT );
-            const Vector3 T = VT_Length > 1e-6f ? Vector3Scale ( VT, 1.f / VT_Length ) : Vector3 { 0.f, 0.f, 0.f };
-
-            // Coulomb friction model
+            const Vector3 T = VT_Length > PE::Math::GKindaSmallNumber ? Vector3Scale ( VT, 1.f / VT_Length ) : Vector3 { 0.f, 0.f, 0.f };
             const float Mu = std::fmax ( 0.f, std::fmin ( BodyA . Friction, BodyB . Friction ) );
             const float MaxJT = Mu * std::fabs ( JN );
             float JT = - VT_Length / ( SumInvMass > 0.f ? SumInvMass : 1.f );
@@ -290,7 +288,6 @@ namespace PE
 
             // Total impulse
             const Vector3 J = Vector3Add ( Vector3Scale ( N, JN ), Vector3Scale ( T, JT ) );
-
 
             // Apply impulses 
             if ( ! BodyA. IsStatic ) 
@@ -440,18 +437,18 @@ namespace PE
         const float Mass = Radius * BallGenerationParameters . MassToRadius;
         const Color BallColor = PE::Math::ColorLerp ( GREEN, RED, ( Radius - BallGenerationParameters . MinRadius ) / ( BallGenerationParameters . MaxRadius - BallGenerationParameters . MinRadius ) );
         return SPhysicsBody { 
-                        .Position = { UX(m_RandomGenerator), UY(m_RandomGenerator), UZ(m_RandomGenerator) }, 
+                        .Shape = { .Type = EShapeType::Sphere, .Sphere = { .Radius = Radius } },
                         .Rotation = QuaternionIdentity(),
+                        .Position = { UX(m_RandomGenerator), UY(m_RandomGenerator), UZ(m_RandomGenerator) }, 
                         .LinearVelocity = { ULVX( m_RandomGenerator ), ULVY( m_RandomGenerator ), ULVZ( m_RandomGenerator ) },
                         .AngularVelocity = { UAVX( m_RandomGenerator ), UAVY( m_RandomGenerator ), UAVZ( m_RandomGenerator ) },
-                        .Shape = { .Type = EShapeType::Sphere, .Sphere = { .Radius = Radius } },
                         .Mass = Mass,
                         .InvMass = (Mass > 0.f) ? (1.f / Mass) : 0.f,
-                        .IsStatic = false,
                         .Restitution = m_SceneParameters . SimulationParameters . BallsRestitution,
                         .Friction = m_SceneParameters . SimulationParameters . BallFriction,
                         .AngularDamping = m_SceneParameters . SimulationParameters . AngularDamping,
                         .LinearDamping = m_SceneParameters . SimulationParameters . LinearDamping,
+                        .IsStatic = false,
                      };
     }
     
