@@ -1,4 +1,4 @@
-Physics-Engine — Report for the "Physics Programmer" task
+Physics-Engine
 =========================================================
 
 Objective
