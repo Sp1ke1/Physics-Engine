@@ -203,7 +203,7 @@ namespace PE
             
             // Update rotation quaternion from angular velocity (axis-angle)
             const float Omega = Vector3Length(PhysicsBody.AngularVelocity);
-            if (Omega > 1e-8f)
+            if (Omega > PE::Math::GKindaSmallNumber)
             {
                 const Vector3 Axis = Vector3Scale(PhysicsBody.AngularVelocity, 1.0f / Omega);
                 const float Angle = Omega * DeltaTime;
